@@ -80,7 +80,7 @@ Roll a d20 check for a character.
 }
 ```
 
-`modifier` is optional (default 0).
+`modifier` is optional (default 0). `result` is one of: `success`, `partial`, `failure`.
 
 **Response:**
 ```json

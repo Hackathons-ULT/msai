@@ -9,6 +9,12 @@ _CONSEQUENCE_HOOKS: dict[str, list[str]] = {
         "{actor}'s skill shines through.",
         "The dice favour {actor}.",
     ],
+    "partial": [
+        "{actor} manages, but barely.",
+        "{actor} gets partway there.",
+        "Close — {actor} almost had it.",
+        "{actor} scrapes by with a partial result.",
+    ],
     "failure": [
         "{actor} stumbles at the worst moment.",
         "The odds catch up to {actor}.",
@@ -26,7 +32,14 @@ def roll_d20(
 ) -> dict:
     raw = random.randint(1, 20)
     total = raw + modifier
-    result = "success" if total >= difficulty else "failure"
+
+    if total >= difficulty + 5:
+        result = "success"
+    elif total >= difficulty - 4:
+        result = "partial"
+    else:
+        result = "failure"
+
     hooks = _CONSEQUENCE_HOOKS[result]
     hook = random.choice(hooks).format(actor=actor)
 

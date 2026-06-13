@@ -21,9 +21,10 @@ def test_roll_within_range():
         assert r["total"] == r["roll"] + r["modifier"]
 
 
-def test_result_success_when_total_meets_difficulty():
-    r = roll_d20("Mage", "Magic", 1)
-    assert r["result"] == "success"
+def test_result_success_when_far_above_difficulty():
+    for _ in range(100):
+        r = roll_d20("Mage", "Magic", 1, modifier=10)
+        assert r["result"] == "success"
 
 
 def test_result_failure_when_total_below_difficulty():
@@ -45,3 +46,32 @@ def test_consequence_is_non_empty_string():
 def test_consequence_contains_actor_name():
     r = roll_d20("Warrior", "Intimidation", 12)
     assert "Warrior" in r["consequence"]
+
+
+def test_result_can_be_partial():
+    for _ in range(100):
+        r = roll_d20("Rogue", "Stealth", 12)
+        assert r["result"] in ("success", "partial", "failure")
+
+
+def test_partial_happens_within_4_of_dc():
+    found_partial = False
+    for _ in range(500):
+        r = roll_d20("Warrior", "Athletics", 12)
+        if r["result"] == "partial":
+            found_partial = True
+            assert r["total"] >= 8  # DC - 4
+            assert r["total"] <= 16  # DC + 4 (success threshold)
+    assert found_partial, "partial result never occurred in 500 rolls"
+
+
+def test_high_roll_is_success():
+    for _ in range(100):
+        r = roll_d20("Mage", "Arcana", 10, modifier=15)
+        assert r["result"] == "success"
+
+
+def test_low_roll_is_failure():
+    for _ in range(100):
+        r = roll_d20("Mage", "Arcana", 20, modifier=-10)
+        assert r["result"] == "failure"
