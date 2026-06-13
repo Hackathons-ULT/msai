@@ -90,7 +90,7 @@ function showGM(){
   speakerName.className = 'speaker';
   speakerName.style.color = '#c8922a';
   speakerName.textContent = 'GAME MASTER';
-  portraitContainer.innerHTML = '<img src="../assets/game-master.png" alt="GM" style="width:100%;height:100%;image-rendering:pixelated" onerror="portraitFallback(this,\'gm\')">';
+  portraitContainer.innerHTML = '<img src="../assets/game-master.png" alt="GM" style="image-rendering:pixelated" onerror="portraitFallback(this,\'gm\')">';
   pInput.addEventListener('input', showPlayer, { once: true });
 }
 

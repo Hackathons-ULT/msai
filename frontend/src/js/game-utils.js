@@ -54,15 +54,15 @@ function spriteFallback(img, role){
 function portraitFallback(img, role){
   const key = role.toLowerCase();
   const svgContent = PORTRAITS[key] || PORTRAITS.warrior;
-  img.outerHTML = `<svg viewBox="0 0 72 86" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated;display:block;width:100%;height:100%;">${svgContent}</svg>`;
+  img.outerHTML = `<svg width="72" height="86" viewBox="0 0 72 86" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated;display:block;">${svgContent}</svg>`;
 }
 
 function agentSpriteHTML(role){
-  return `<img src="${API_BASE}/assets/characters/${role}.png" alt="${role}" style="width:100%;height:100%;image-rendering:pixelated" onerror="spriteFallback(this,'${role}')">`;
+  return `<img src="${API_BASE}/assets/characters/${role}.png" alt="${role}" style="image-rendering:pixelated" onerror="spriteFallback(this,'${role}')">`;
 }
 
 function portraitSpriteHTML(role){
-  return `<img src="${API_BASE}/assets/characters/${role}.png" alt="${role}" style="width:100%;height:100%;image-rendering:pixelated" onerror="portraitFallback(this,'${role}')">`;
+  return `<img src="${API_BASE}/assets/characters/${role}.png" alt="${role}" style="image-rendering:pixelated" onerror="portraitFallback(this,'${role}')">`;
 }
 
 function resetDie(){

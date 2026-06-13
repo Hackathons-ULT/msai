@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.game_manager import GameManager
@@ -64,6 +65,14 @@ class UpdateRequest(BaseModel):
     inventory_remove: dict[str, list[str]] | None = None
     flags_set: dict[str, bool | str] | None = None
     narration: str | None = None
+
+
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+
+
+@app.get("/character-types")
+def character_types():
+    return ["Warrior", "Mage", "Rogue", "Healer"]
 
 
 @app.get("/")
