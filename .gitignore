@@ -3,3 +3,4 @@ venv
 plan.md
 __pycache__
 game_manager_usage.md
+.vscode

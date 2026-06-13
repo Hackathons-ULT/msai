@@ -152,10 +152,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .act-btn{background:#2a1e0c;border:2px solid #7a5228;border-radius:1px;padding:clamp(5px,0.5vw,9px) clamp(8px,0.8vw,14px);font-size:clamp(6px,0.6vw,10px);color:#c8922a;font-family:'Press Start 2P',monospace;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .act-btn:hover{background:#3a2a10;color:#f0c060;}
 
-.role-sw{position:absolute;bottom:clamp(4px,0.4vw,8px);right:clamp(5px,0.5vw,10px);display:flex;gap:clamp(2px,0.2vw,5px);z-index:10;flex-wrap:wrap;justify-content:flex-end;max-width:60%;}
-.r-btn{font-size:clamp(4px,0.4vw,7px);padding:clamp(2px,0.2vw,5px) clamp(4px,0.4vw,8px);border-radius:1px;border:1.5px solid #5a3e1a;background:#1e1408;color:#7a5a28;cursor:pointer;font-family:'Press Start 2P',monospace;transition:all 0.1s;}
-.r-btn.active{border-color:#c8922a;color:#f0c060;background:#2a1e0c;}
-.r-btn:hover{border-color:#8a6030;color:#c8922a;}
+.gm-acc{background:#c8922a;}
 
 .loading-overlay{
   position:fixed;inset:0;z-index:999;

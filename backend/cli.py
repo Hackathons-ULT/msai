@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """CLI game runner for testing the backend without a frontend."""
 
-from backend.game_manager import GameManager
-from backend.state import GameState, PartyMember
+from src.game_manager import GameManager
+from src.state import GameState, PartyMember
 
 
 def print_banner():

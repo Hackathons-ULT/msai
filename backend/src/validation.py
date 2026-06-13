@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.state import GameState, PartyMember
+from state import GameState, PartyMember
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:

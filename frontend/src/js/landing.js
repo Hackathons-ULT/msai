@@ -1,5 +1,6 @@
 const API_BASE = 'http://localhost:8000';
 const DEFAULT_CLASSES = ['Warrior', 'Mage', 'Rogue', 'Healer'];
+const MAX_PARTY = 4;
 
 const CLASS_META = {
   Warrior:{ico:'\u2694',desc:'Brute strength & steel'},
@@ -17,36 +18,63 @@ async function apiPost(endpoint, body){
   return r.json();
 }
 
-let selectedClass = null;
+let myClass = null;
+let allyClasses = [];
 let selectedCampaign = null;
 let uploadedFileContent = null;
+let availableClasses = DEFAULT_CLASSES;
 
 async function loadClasses(){
-  let classes = DEFAULT_CLASSES;
   try {
     const r = await fetch(`${API_BASE}/character-types`, {signal:AbortSignal.timeout(2000)});
-    if(r.ok) classes = await r.json();
+    if(r.ok) availableClasses = await r.json();
   } catch {}
-  renderClasses(classes);
+  renderClasses();
 }
 
-function renderClasses(list){
+function handleClassClick(cls){
+  if(myClass === cls){
+    myClass = null;
+    allyClasses = [];
+  } else if(!myClass){
+    myClass = cls;
+  } else if(allyClasses.includes(cls)){
+    allyClasses = allyClasses.filter(c => c !== cls);
+  } else if(allyClasses.length < MAX_PARTY - 1){
+    allyClasses.push(cls);
+  } else {
+    return;
+  }
+  renderClasses();
+  validateForm();
+}
+
+function renderClasses(){
   const grid = document.getElementById('classGrid');
   grid.innerHTML = '';
-  list.forEach(cls => {
+  availableClasses.forEach(cls => {
     const meta = CLASS_META[cls] || {ico:'?',desc:''};
     const card = document.createElement('div');
-    card.className = 'class-card' + (selectedClass === cls ? ' selected' : '');
+    card.className = 'class-card';
+    if(myClass === cls) card.classList.add('you');
+    if(allyClasses.includes(cls)) card.classList.add('ally');
     card.dataset.class = cls;
-    card.innerHTML = `<span class="ico">${meta.ico}</span><span class="cname">${cls.toUpperCase()}</span><span class="cdesc">${meta.desc}</span>`;
-    card.onclick = () => {
-      document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      selectedClass = cls;
-      validateForm();
-    };
+    let badge = '';
+    if(myClass === cls) badge = '<span class="c-badge you-badge">YOU</span>';
+    else if(allyClasses.includes(cls)) badge = '<span class="c-badge ally-badge">ALLY</span>';
+    card.innerHTML = `<span class="ico">${meta.ico}</span><span class="cname">${cls.toUpperCase()}</span><span class="cdesc">${meta.desc}</span>${badge}`;
+    card.onclick = () => handleClassClick(cls);
     grid.appendChild(card);
   });
+  let counter = document.getElementById('partyCounter');
+  if(!counter){
+    counter = document.createElement('div');
+    counter.id = 'partyCounter';
+    counter.className = 'party-counter';
+    grid.parentNode.insertBefore(counter, grid.nextSibling);
+  }
+  const total = myClass ? 1 + allyClasses.length : 0;
+  counter.textContent = 'PARTY: '+total+'/'+MAX_PARTY;
 }
 
 async function loadExistingCampaign(){
@@ -80,14 +108,14 @@ document.getElementById('fileInput').onchange = (e) => {
 
 function validateForm(){
   const name = document.getElementById('charName').value.trim();
-  const valid = name.length > 0 && selectedClass !== null;
+  const valid = name.length > 0 && myClass !== null;
   document.getElementById('startBtn').disabled = !valid;
 }
 document.getElementById('charName').oninput = validateForm;
 
 document.getElementById('startBtn').onclick = async () => {
   const name = document.getElementById('charName').value.trim();
-  if(!name || !selectedClass) return;
+  if(!name || !myClass) return;
 
   const btn = document.getElementById('startBtn');
   btn.disabled = true;
@@ -99,12 +127,12 @@ document.getElementById('startBtn').onclick = async () => {
 
   const defaultNames = {Warrior:'Thorn', Mage:'Elara', Rogue:'Vex', Healer:'Luna'};
   const defaultInv = {Warrior:[], Mage:['Staff'], Rogue:['Dagger','Lockpicks'], Healer:['Herbs']};
-  const agents = ['Warrior','Mage','Rogue','Healer'];
-  const party = agents.map(agent => ({
+  const allSelected = [myClass, ...allyClasses];
+  const party = allSelected.map(agent => ({
     agent,
-    name: agent === selectedClass ? name : (defaultNames[agent] || agent),
+    name: agent === myClass ? name : (defaultNames[agent] || agent),
     health: 20, max_health: 20,
-    inventory: agent === selectedClass ? [] : (defaultInv[agent] || [])
+    inventory: agent === myClass ? [] : (defaultInv[agent] || [])
   }));
 
   try {
@@ -112,7 +140,7 @@ document.getElementById('startBtn').onclick = async () => {
   } catch {}
 
   localStorage.setItem('opencode_playerName', name);
-  localStorage.setItem('opencode_playerClass', selectedClass);
+  localStorage.setItem('opencode_playerClass', myClass);
   localStorage.setItem('opencode_campaign', campaignName);
   localStorage.setItem('opencode_location', location);
   localStorage.setItem('opencode_quest', quest);

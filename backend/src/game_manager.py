@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from backend.state import GameState
-from backend.dice import roll_d20
-from backend.validation import validate_and_apply
+from state import GameState
+from dice import roll_d20
+from validation import validate_and_apply
 
 
 class GameManager:

@@ -46,10 +46,15 @@ body{
   text-align:center;cursor:pointer;transition:all 0.12s;user-select:none;
 }
 .class-card:hover{border-color:#7a5a28;background:#2a1e0c;}
-.class-card.selected{border-color:#c8922a;background:#3d2c10;}
+.class-card.you{border-color:#c8922a;background:#3d2c10;}
+.class-card.ally{border-color:#2a8855;background:#1a3322;}
 .class-card .ico{font-size:clamp(14px,1.8vw,24px);display:block;margin-bottom:4px;}
 .class-card .cname{font-size:clamp(5px,0.6vw,8px);color:#b89060;display:block;}
 .class-card .cdesc{font-size:clamp(4px,0.5vw,7px);color:#7a5a28;display:block;margin-top:3px;}
+.class-card .c-badge{display:block;font-size:clamp(3px,0.4vw,6px);margin-top:3px;}
+.you-badge{color:#f0c060;}
+.ally-badge{color:#44dd88;}
+.party-counter{font-size:clamp(4px,0.5vw,7px);color:#8a6a3a;margin-top:8px;text-align:center;}
 
 .campaign-row{display:flex;gap:12px;flex-wrap:wrap;}
 .camp-card{

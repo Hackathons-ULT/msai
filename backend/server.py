@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend.game_manager import GameManager
-from backend.state import GameState, PartyMember
+from src.game_manager import GameManager
+from src.state import GameState, PartyMember
 
 app = FastAPI(title="MSAI RPG Backend")
 

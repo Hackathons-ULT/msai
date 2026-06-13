@@ -1,4 +1,4 @@
-from backend.dice import roll_d20
+from src.dice import roll_d20
 
 
 def test_roll_returns_required_keys():

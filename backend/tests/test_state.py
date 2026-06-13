@@ -1,4 +1,4 @@
-from backend.state import GameState, PartyMember
+from src.state import GameState, PartyMember
 
 
 def test_create_party_member():

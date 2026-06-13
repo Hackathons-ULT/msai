@@ -1,5 +1,5 @@
-from backend.state import GameState, PartyMember
-from backend.validation import validate_and_apply
+from src.state import GameState, PartyMember
+from src.validation import validate_and_apply
 
 
 def make_state(**kwargs) -> GameState:

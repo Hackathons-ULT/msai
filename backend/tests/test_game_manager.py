@@ -1,5 +1,5 @@
-from backend.state import GameState, PartyMember
-from backend.game_manager import GameManager
+from src.state import GameState, PartyMember
+from src.game_manager import GameManager
 
 
 def test_initial_state():
