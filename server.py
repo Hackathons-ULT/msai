@@ -51,8 +51,9 @@ class RollRequest(BaseModel):
     modifier: int = 0
 
 
-class ActionRequest(BaseModel):
-    text: str
+class TurnRequest(BaseModel):
+    action: str
+    session_id: str = "default"
 
 
 class UpdateRequest(BaseModel):
@@ -70,11 +71,12 @@ def root():
     return {"name": "MSAI RPG Backend", "status": "ok"}
 
 
-@app.post("/action")
-def player_action(body: ActionRequest):
-    gm.update(narration=body.text)
+@app.post("/turn")
+def turn(body: TurnRequest):
+    gm.update(narration=body.action)
     return {
-        "narration": f"[GM agent not wired yet] Received: {body.text}",
+        "narration": f"[GM agent not wired yet] Received: {body.action}",
+        "choices": [],
         "state": gm.get_state(),
         "trace": gm.get_trace(),
     }
