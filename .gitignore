@@ -1,2 +1,4 @@
 venv
 .env
+plan.md
+__pycache__

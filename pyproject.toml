@@ -1,0 +1,9 @@
+[project]
+name = "msai-rpg"
+version = "0.1.0"
+description = "Multi-agent RPG game on Microsoft Foundry"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
