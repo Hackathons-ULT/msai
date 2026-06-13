@@ -4,3 +4,5 @@ plan.md
 __pycache__
 game_manager_usage.md
 .vscode
+test.py
+*.local.py
