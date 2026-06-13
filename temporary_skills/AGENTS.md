@@ -1,6 +1,12 @@
-# CLAUDE.md
+# AGENTS.md
 
-Project context for Claude Code. Read this fully before generating or editing code.
+Project context for AI coding agents (Claude Code, Cursor, etc.). Read this fully before generating or editing code.
+
+> **New session / onboarding:** if the teammate hasn't said what they're working on, follow
+> `ONBOARDING.md` first, ask which role they hold and personalize guidance to it before diving in.
+> Full team plan, phase ordering, and priorities live in `BUILD_PLAN.md`. That file is
+> human-coordination detail (roles, sequencing, submission); this file is the authoritative
+> code-level spec. Where they overlap, this file wins for anything code-related.
 
 ---
 
@@ -20,7 +26,7 @@ The world (locations, characters, quest, lore) is **original and synthetic**, st
 - No secrets in the repo. `.env` is gitignored. Never commit keys, endpoints with keys, or connection strings.
 
 ### Build approach (LOCKED)
-**Local orchestration with the Microsoft Agent Framework.** The agent loop runs in our own Python code, not as a Foundry-hosted/cloud-orchestrated service. Foundry still provides the hosted **models** and **Foundry IQ** (knowledge layer); we call both from local code. This is chosen for fast iteration, easy debugging, and because the reasoning trace is far simpler to emit when the loop runs in our code. Deploying to Foundry Agent Service later is an optional finishing step (H1), not the foundation - do not build around cloud hosting.
+**Local orchestration with the Microsoft Agent Framework.** The agent loop runs in our own Python code, not as a Foundry-hosted/cloud-orchestrated service. Foundry still provides the hosted **models** and **Foundry IQ** (knowledge layer); we call both from local code. This is chosen for fast iteration, easy debugging, and because the reasoning trace is far simpler to emit when the loop runs in our code. Deploying to Foundry Agent Service later is an optional finishing step (H1), not the foundation — do not build around cloud hosting.
 
 ### What scores (so prioritize accordingly)
 Reasoning & multi-step thinking (25%), Accuracy & relevance / grounding (25%), Reliability & safety (20%), Creativity (15%), UX/presentation (15%). The two biggest levers are **visible orchestration** and **grounded retrieval with citations**.
@@ -45,12 +51,12 @@ Key principle: **the agents decide what happens, not backend logic.** The backen
 The world pack files are **never** passed through the frontend or backend at runtime. They are uploaded once into Foundry IQ and queried by agents. Runtime traffic is only: player action in, narrated scene + state out.
 
 ### Agents
-- **Game Master** - orchestrator. Intent classification, agent routing, tool sequencing, conflict resolution, narration, state updates. Owns the reasoning trace.
-- **Warrior** - combat, defense, strength/intimidation checks.
-- **Mage** - interprets magic/runes/artifacts; pulls arcane lore from Foundry IQ.
-- **Rogue** - scouting, traps, stealth/lockpicking; recalls secrets from state.
-- **Healer** - party health, morale, negotiation/ethical options, cultural lore.
-- **Rival** - recurring ally-or-antagonist driven by player choices; its secret motive is GM-only.
+- **Game Master** — orchestrator. Intent classification, agent routing, tool sequencing, conflict resolution, narration, state updates. Owns the reasoning trace.
+- **Warrior** — combat, defense, strength/intimidation checks.
+- **Mage** — interprets magic/runes/artifacts; pulls arcane lore from Foundry IQ.
+- **Rogue** — scouting, traps, stealth/lockpicking; recalls secrets from state.
+- **Healer** — party health, morale, negotiation/ethical options, cultural lore.
+- **Rival** — recurring ally-or-antagonist driven by player choices; its secret motive is GM-only.
 
 ---
 
@@ -89,7 +95,7 @@ response: {
 ```
 `result` is one of: `success`, `partial`, `failure`.
 
-### Reasoning trace (this is a scored feature - emit it every turn)
+### Reasoning trace (this is a scored feature — emit it every turn)
 An ordered list of what the GM did, so the UI can show the multi-step reasoning:
 ```json
 [
@@ -104,13 +110,13 @@ An ordered list of what the GM did, so the UI can show the multi-step reasoning:
 
 ---
 
-## Foundry IQ - retrieval layer (ACTIVE WORK for this contributor)
+## Foundry IQ — retrieval layer (ACTIVE WORK for this contributor)
 
 This contributor (AI Lead 2) owns the knowledge/grounding layer. Foundry IQ is built on Azure AI Search agentic retrieval; a knowledge base is created and agents query it for grounded, cited answers. Goal: when an agent asks about a location/NPC/artifact, it gets back the right lore chunk **with a citation**.
 
 ### Build order for this slice
 1. **Access smoke test.** Confirm Foundry project access, correct RBAC (the `Foundry User` role on the parent resource; a 403 means the role is missing), and an Azure AI Search service exists. Create a throwaway knowledge base, connect one small file, index, query, confirm a cited chunk returns. Prefer the Serverless/Developer tier for cost.
-2. **Ingest the world pack** (authored separately as multiple small, focused Markdown files - see below). Create the real knowledge base from them.
+2. **Ingest the world pack** (authored separately as multiple small, focused Markdown files — see below). Create the real knowledge base from them.
 3. **Verify retrieval quality.** Direct queries for a location, a character, and the artifact must each return the correct chunk with a citation. If results are vague, split lore into smaller files / tighten headings. Do not proceed until retrieval is clean.
 4. **Separate player-known vs GM-only lore** so the GM can reason over secrets/twists without leaking them into player-facing narration.
 5. **Expose a retrieval interface** the GM and Mage call. Foundry IQ knowledge bases are reachable via the knowledge-base API and as an MCP server, so any agent runtime can query them.
@@ -135,7 +141,7 @@ Small, focused, single-topic Markdown files retrieve best. Expected set:
 - Note: Foundry IQ went GA at Build 2026 and some agentic-retrieval features are preview-gated by API version. Verify exact API versions / SDK calls against current Microsoft Learn docs before relying on a specific signature; do not invent endpoints or version strings.
 
 ## Conventions
-- Keep the GM's orchestration legible - emit the reasoning trace every turn.
+- Keep the GM's orchestration legible — emit the reasoning trace every turn.
 - Keep mutable session state separate from static world lore.
 - Plain ASCII in generated text and docs; no em dashes.
 - Synthetic data only; if asked to add lore, invent original content, never reference existing franchises.
