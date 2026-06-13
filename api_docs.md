@@ -14,25 +14,31 @@ Health check.
 
 ---
 
-## `POST /action`
+## `POST /turn`
 
-Send a player action to the Game Master agent.
+Main game loop — send a player action and get the narrated scene + updated state.
 
 **Request:**
 ```json
 {
-  "text": "I attack the goblin with my sword"
+  "action": "I attack the goblin with my sword",
+  "session_id": "default"
 }
 ```
+
+`session_id` is optional (defaults to `"default"`). Will support multiple concurrent games later.
 
 **Response:**
 ```json
 {
-  "narration": "The Game Master's response...",
+  "narration": "[GM agent not wired yet] Received: I attack the goblin with my sword",
+  "choices": [],
   "state": { "...full game state..." },
   "trace": []
 }
 ```
+
+`choices` is populated by the GM agent with suggested next actions.
 
 ---
 
