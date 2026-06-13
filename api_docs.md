@@ -147,3 +147,36 @@ Empties the trace log.
 ```json
 {"status": "ok"}
 ```
+
+---
+
+## `POST /reset`
+
+Reset the game to a fresh state. All fields are optional — defaults create the standard party.
+
+**Request:**
+```json
+{
+  "campaign": "The Lost Sigil",
+  "location": "Whispering Woods",
+  "active_quest": "A new quest",
+  "party": [
+    {
+      "agent": "Warrior",
+      "name": "Thorn",
+      "health": 20,
+      "max_health": 20,
+      "inventory": []
+    }
+  ],
+  "world_flags": {}
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "state": { "...full game state..." }
+}
+```

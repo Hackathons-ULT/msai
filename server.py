@@ -31,6 +31,19 @@ gm = GameManager(
 )
 
 
+class ResetRequest(BaseModel):
+    campaign: str = "The Lost Sigil"
+    location: str = "Whispering Woods"
+    active_quest: str = "Find the ancient artifact"
+    party: list[dict] = [
+        {"agent": "Warrior", "name": "Thorn", "health": 20, "max_health": 20, "inventory": []},
+        {"agent": "Mage", "name": "Elara", "health": 16, "max_health": 20, "inventory": ["Staff"]},
+        {"agent": "Rogue", "name": "Vex", "health": 18, "max_health": 20, "inventory": ["Dagger", "Lockpicks"]},
+        {"agent": "Healer", "name": "Luna", "health": 14, "max_health": 20, "inventory": ["Herbs"]},
+    ]
+    world_flags: dict[str, bool | str] = {}
+
+
 class RollRequest(BaseModel):
     actor: str
     check: str
@@ -87,3 +100,19 @@ def get_trace():
 def clear_trace():
     gm.clear_trace()
     return {"status": "ok"}
+
+
+@app.post("/reset")
+def reset_game(body: ResetRequest):
+    global gm
+    party = [PartyMember.from_dict(m) for m in body.party]
+    gm = GameManager(
+        state=GameState(
+            campaign=body.campaign,
+            location=body.location,
+            active_quest=body.active_quest,
+            party=party,
+            world_flags=dict(body.world_flags),
+        )
+    )
+    return {"status": "ok", "state": gm.get_state()}
