@@ -51,6 +51,10 @@ class RollRequest(BaseModel):
     modifier: int = 0
 
 
+class ActionRequest(BaseModel):
+    text: str
+
+
 class UpdateRequest(BaseModel):
     location: str | None = None
     active_quest: str | None = None
@@ -64,6 +68,16 @@ class UpdateRequest(BaseModel):
 @app.get("/")
 def root():
     return {"name": "MSAI RPG Backend", "status": "ok"}
+
+
+@app.post("/action")
+def player_action(body: ActionRequest):
+    gm.update(narration=body.text)
+    return {
+        "narration": f"[GM agent not wired yet] Received: {body.text}",
+        "state": gm.get_state(),
+        "trace": gm.get_trace(),
+    }
 
 
 @app.get("/state")

@@ -14,6 +14,30 @@ Health check.
 
 ---
 
+## `POST /action`
+
+Main game loop — send a player action and get the result.
+
+This endpoint is a **stub** until the AI leads wire in the Game Master agent. Currently it just logs the action and returns a placeholder.
+
+**Request:**
+```json
+{
+  "text": "I attack the goblin with my sword"
+}
+```
+
+**Response:**
+```json
+{
+  "narration": "[GM agent not wired yet] Received: I attack the goblin with my sword",
+  "state": { "...full game state..." },
+  "trace": []
+}
+```
+
+---
+
 ## `GET /state`
 
 Returns the full game state: campaign info, party, location, flags.
