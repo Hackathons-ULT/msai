@@ -1,0 +1,54 @@
+<link rel="stylesheet" href="css/landing.css">
+
+<div class="landing-card">
+<div class="lc-inner">
+
+  <div class="title">⚔ AGENTS LEAGUE</div>
+  <div class="subtitle">— RPG SESSION SETUP —</div>
+
+  <div class="section">
+    <div class="sec-hd">CHARACTER</div>
+    <div class="char-row">
+      <div class="char-field">
+        <label for="charName">NAME</label>
+        <input type="text" id="charName" placeholder="> enter name" maxlength="24">
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div style="font-size:clamp(5px,0.6vw,8px);color:#8a6a3a;margin-bottom:6px;">CLASS</div>
+      <div class="class-grid" id="classGrid"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-hd">CAMPAIGN</div>
+    <div class="campaign-row">
+      <div class="camp-card">
+        <h3>UPLOAD YOUR OWN</h3>
+        <div class="upload-zone" id="uploadZone">
+          <span class="ico">📂</span>
+          <span>Drop .txt / .md here</span>
+          <span class="hint">or click to browse</span>
+          <div class="coming-soon">COMING SOON</div>
+        </div>
+        <div style="margin-top:6px;font-size:clamp(4px,0.5vw,7px);color:#4a3518;" id="uploadStatus"></div>
+        <input type="file" id="fileInput" accept=".txt,.md" style="display:none">
+      </div>
+      <div class="camp-card">
+        <h3>USE EXISTING</h3>
+        <div class="camp-list" id="campList">
+          <div class="loading-text">⟳ loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="start-btn" id="startBtn" disabled>
+    ⚔ ENTER THE VAULT ⚔
+    <span class="sub">— create or continue your adventure —</span>
+  </button>
+
+</div>
+</div>
+
+<script src="js/landing.js"></script>
