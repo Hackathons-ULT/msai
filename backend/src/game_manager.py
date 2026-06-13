@@ -10,6 +10,12 @@ class GameManager:
         self.state = state or GameState()
         self.trace: list[dict] = []
 
+    def record_trace(self, kind: str, payload: dict | None = None) -> None:
+        entry = {"type": kind}
+        if payload:
+            entry.update(payload)
+        self.trace.append(entry)
+
     def roll_dice(
         self,
         actor: str,
@@ -18,9 +24,9 @@ class GameManager:
         modifier: int = 0,
     ) -> dict:
         result = roll_d20(actor, check, difficulty, modifier)
-        self.trace.append(
+        self.record_trace(
+            "dice",
             {
-                "type": "dice",
                 "actor": actor,
                 "check": check,
                 "roll": result["roll"],
@@ -28,7 +34,7 @@ class GameManager:
                 "total": result["total"],
                 "difficulty": difficulty,
                 "result": result["result"],
-            }
+            },
         )
         return result
 
@@ -59,20 +65,21 @@ class GameManager:
                 inventory_remove=inventory_remove,
                 flags_set=flags_set,
             )
-            self.trace.append(
+            self.record_trace(
+                "state_update",
                 {
-                    "type": "state_update",
                     "location": location,
                     "active_quest": active_quest,
                     "health_changes": health_changes,
                     "inventory_add": inventory_add,
                     "inventory_remove": inventory_remove,
                     "flags_set": flags_set,
-                }
+                    "warnings": errors,
+                },
             )
 
         if narration:
-            self.trace.append({"type": "narration", "text": narration})
+            self.record_trace("narration", {"text": narration})
 
         return errors
 

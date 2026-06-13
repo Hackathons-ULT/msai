@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from src.agent_workflow import LocalAgentWorkflow
 from src.game_manager import GameManager
 from src.state import GameState, PartyMember
+from src.tools import LocalLoreRetriever
+
+BASE_DIR = Path(__file__).resolve().parent
+ASSETS_DIR = BASE_DIR / "assets"
 
 app = FastAPI(title="MSAI RPG Backend")
 
@@ -17,19 +24,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-gm = GameManager(
-    state=GameState(
-        campaign="The Lost Sigil",
-        location="Whispering Woods",
-        active_quest="Find the ancient artifact",
-        party=[
-            PartyMember(agent="Warrior", name="Thorn", health=20),
-            PartyMember(agent="Mage", name="Elara", health=16, inventory=["Staff"]),
-            PartyMember(agent="Rogue", name="Vex", health=18, inventory=["Dagger", "Lockpicks"]),
-            PartyMember(agent="Healer", name="Luna", health=14, inventory=["Herbs"]),
-        ],
-    )
+DEFAULT_STATE = GameState(
+    campaign="The Lost Sigil",
+    location="Whispering Woods",
+    active_quest="Find the ancient artifact",
+    party=[
+        PartyMember(agent="Warrior", name="Thorn", health=20),
+        PartyMember(agent="Mage", name="Elara", health=16, inventory=["Staff"]),
+        PartyMember(agent="Rogue", name="Vex", health=18, inventory=["Dagger", "Lockpicks"]),
+        PartyMember(agent="Healer", name="Luna", health=14, inventory=["Herbs"]),
+    ],
 )
+
+gm = GameManager(state=GameState.from_dict(DEFAULT_STATE.to_dict()))
+workflow = LocalAgentWorkflow(gm, lore_retriever=LocalLoreRetriever(BASE_DIR / "world_pack"))
 
 
 class ResetRequest(BaseModel):
@@ -67,7 +75,7 @@ class UpdateRequest(BaseModel):
     narration: str | None = None
 
 
-app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 
 @app.get("/character-types")
@@ -82,13 +90,22 @@ def root():
 
 @app.post("/turn")
 def turn(body: TurnRequest):
-    gm.update(narration=body.action)
+    result = workflow.run_turn(body.action, body.session_id)
     return {
-        "narration": f"[GM agent not wired yet] Received: {body.action}",
-        "choices": [],
-        "state": gm.get_state(),
-        "trace": gm.get_trace(),
+        "narration": result.narration,
+        "choices": result.choices,
+        "state": result.state,
+        "trace": result.trace,
+        "plan": result.plan,
+        "lore": result.lore,
+        "dice": result.dice,
+        "warnings": result.warnings,
     }
+
+
+@app.post("/action")
+def action(body: TurnRequest):
+    return turn(body)
 
 
 @app.get("/state")
@@ -129,7 +146,7 @@ def clear_trace():
 
 @app.post("/reset")
 def reset_game(body: ResetRequest):
-    global gm
+    global gm, workflow
     party = [PartyMember.from_dict(m) for m in body.party]
     gm = GameManager(
         state=GameState(
@@ -140,4 +157,5 @@ def reset_game(body: ResetRequest):
             world_flags=dict(body.world_flags),
         )
     )
+    workflow = LocalAgentWorkflow(gm, lore_retriever=LocalLoreRetriever(BASE_DIR / "world_pack"))
     return {"status": "ok", "state": gm.get_state()}
