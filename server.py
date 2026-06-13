@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from backend.game_manager import GameManager
 from backend.state import GameState, PartyMember
-from backend.gm_agent import process_action
 
 app = FastAPI(title="MSAI RPG Backend")
 
@@ -69,13 +67,17 @@ class UpdateRequest(BaseModel):
 
 @app.get("/")
 def root():
-    with open("test_frontend.html") as f:
-        return HTMLResponse(f.read())
+    return {"name": "MSAI RPG Backend", "status": "ok"}
 
 
 @app.post("/action")
 def player_action(body: ActionRequest):
-    return process_action(gm, body.text)
+    gm.update(narration=body.text)
+    return {
+        "narration": f"[GM agent not wired yet] Received: {body.text}",
+        "state": gm.get_state(),
+        "trace": gm.get_trace(),
+    }
 
 
 @app.get("/state")

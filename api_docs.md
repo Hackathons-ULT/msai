@@ -16,9 +16,7 @@ Health check.
 
 ## `POST /action`
 
-Main game loop — send a player action and get the result.
-
-This endpoint is a **stub** until the AI leads wire in the Game Master agent. Currently it just logs the action and returns a placeholder.
+Send a player action to the Game Master agent.
 
 **Request:**
 ```json
@@ -30,7 +28,7 @@ This endpoint is a **stub** until the AI leads wire in the Game Master agent. Cu
 **Response:**
 ```json
 {
-  "narration": "[GM agent not wired yet] Received: I attack the goblin with my sword",
+  "narration": "The Game Master's response...",
   "state": { "...full game state..." },
   "trace": []
 }
