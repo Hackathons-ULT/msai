@@ -18,6 +18,11 @@ const PORTRAITS = {
   rival:'<rect width="72" height="86" fill="#081208"/><rect x="8" y="4" width="56" height="10" fill="#142014"/><rect x="4" y="14" width="64" height="20" fill="#1e301e"/><rect x="0" y="14" width="10" height="24" fill="#142014"/><rect x="62" y="14" width="10" height="24" fill="#142014"/><rect x="12" y="24" width="48" height="14" fill="#c4a070"/><rect x="16" y="28" width="10" height="8" fill="#0a0a0a" opacity="0.6"/><rect x="16" y="30" width="8" height="5" fill="#28aa58" opacity="0.9"/><rect x="48" y="30" width="8" height="5" fill="#28aa58" opacity="0.9"/><rect x="4" y="38" width="64" height="32" fill="#182818"/><rect x="8" y="40" width="56" height="28" fill="#1e301e"/><rect x="0" y="38" width="8" height="32" fill="#286040"/><rect x="64" y="38" width="8" height="32" fill="#286040"/><rect x="28" y="46" width="16" height="4" fill="#c0c0c0"/><rect x="26" y="42" width="6" height="12" fill="#c0c0c0"/><rect x="40" y="42" width="6" height="12" fill="#c0c0c0"/><rect x="22" y="48" width="10" height="4" fill="#987818"/><rect x="40" y="48" width="10" height="4" fill="#987818"/><rect x="4" y="70" width="64" height="16" fill="#142014"/>'
 };
 
+const PNG_FILE = {
+  rival:'rogue',
+  warrior:'warrior', mage:'mage', healer:'healer', bard:'bard', gm:'gm'
+};
+
 const ROLE_DATA = {
   warrior:{badge:'WARRIOR',accent:'warrior-acc',speakerCls:'',speakerColor:'#c8922a',borderColor:'#7a5228'},
   mage:{badge:'MAGE',accent:'mage-acc',speakerCls:'mage-spk',speakerColor:'#9966ff',borderColor:'#4a2a8a'},

@@ -59,12 +59,14 @@ function portraitFallback(img, role){
 
 function agentSpriteHTML(role){
   const lc = role.toLowerCase();
-  return `<img src="${API_BASE}/assets/characters/${lc}.png" alt="${role}" style="image-rendering:pixelated" onerror="spriteFallback(this,'${role}')">`;
+  const file = PNG_FILE[lc] || lc;
+  return `<img src="${API_BASE}/assets/characters/${file}.png" alt="${role}" style="image-rendering:pixelated" onerror="spriteFallback(this,'${role}')">`;
 }
 
 function portraitSpriteHTML(role){
   const lc = role.toLowerCase();
-  return `<img src="${API_BASE}/assets/characters/${lc}.png" alt="${role}" style="image-rendering:pixelated" onerror="portraitFallback(this,'${role}')">`;
+  const file = PNG_FILE[lc] || lc;
+  return `<img src="${API_BASE}/assets/characters/${file}.png" alt="${role}" style="image-rendering:pixelated" onerror="portraitFallback(this,'${role}')">`;
 }
 
 function resetDie(){
