@@ -7,7 +7,7 @@ function renderParty(){
     const key = m.agent.toLowerCase();
     const isLit = key === activeKey;
     const STAT_ABBR = {strength:'STR',dexterity:'DEX',constitution:'CON',intelligence:'INT',wisdom:'WIS',charisma:'CHA'};
-    const STAT_TIP = {strength:'Physical power — melee attacks & forced actions',dexterity:'Agility & reflexes — stealth, speed, dodging',constitution:'Toughness — endurance & resistance to harm',intelligence:'Knowledge & reasoning — arcana & investigation',wisdom:'Perception & judgement — awareness & willpower',charisma:'Social force — persuasion, deception & charm'};
+    const STAT_TIP = {strength:'Physical power: melee attacks and forced actions',dexterity:'Agility and reflexes: stealth, speed, dodging',constitution:'Toughness: endurance and resistance to harm',intelligence:'Knowledge and reasoning: arcana and investigation',wisdom:'Perception and judgement: awareness and willpower',charisma:'Social force: persuasion, deception and charm'};
     const statRows = Object.keys(STAT_ABBR).map(s =>
       '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(m[s]??10)+'</td></tr>'
     ).join('');
