@@ -14,7 +14,7 @@ function renderParty(){
   members.forEach(m => {
     const key = m.agent.toLowerCase();
     const isLit = key === activeKey;
-    const STAT_ABBR = {strength:'STR',dexterity:'DEX',constitution:'CON',intelligence:'INT',wisdom:'WIS',charisma:'CHA'};
+    const STAT_ABBR = {strength:'STRENGTH',dexterity:'AGILITY',constitution:'ENDURANCE',intelligence:'INTELLECT',wisdom:'WISDOM',charisma:'CHARM'};
     const STAT_TIP = {strength:'Physical power: melee attacks and forced actions',dexterity:'Agility and reflexes: stealth, speed, dodging',constitution:'Toughness: endurance and resistance to harm',intelligence:'Knowledge and reasoning: arcana and investigation',wisdom:'Perception and judgement: awareness and willpower',charisma:'Social force: persuasion, deception and charm'};
     const isRival = key === 'rival';
     const isRevealed = isRival && gameState.world_flags && gameState.world_flags.kael_revealed;
