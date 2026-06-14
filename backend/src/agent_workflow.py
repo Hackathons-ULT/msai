@@ -53,6 +53,17 @@ CHECK_TO_STAT = {
     "Persuasion": "charisma",
 }
 
+ALLOWED_AGENTS_BY_INTENT = {
+    "combat": {"Warrior", "Mage", "Rogue"},
+    "support": {"Healer", "Mage"},
+    "stealth": {"Rogue", "Warrior"},
+    "investigate": {"Rogue", "Mage", "Healer"},
+    "travel": {"Rogue", "Warrior"},
+    "arcana": {"Mage", "Rogue"},
+    "social": {"Healer", "Rival", "Bard"},
+    "clarify": {"Warrior", "Mage", "Healer", "Rogue", "Bard", "Rival"},
+}
+
 
 class LocalAgentWorkflow:
     """Local orchestration that mirrors the intended Agent Framework turn loop.
@@ -206,6 +217,19 @@ class LocalAgentWorkflow:
         if not llm_plan:
             return heuristic
 
+        # Keep routing and state changes deterministic. The LLM may only suggest
+        # a refined retrieval query; everything else stays anchored to the
+        # heuristic plan so turns cannot drift into invalid agent routing.
+        retrieval_query = self._sanitize_retrieval_query(llm_plan.get("retrieval_query"))
+        if retrieval_query:
+            heuristic.retrieval_query = retrieval_query
+            heuristic.source = "llm"
+        return heuristic
+
+        llm_plan = self._llm_build_plan(action, session_id)
+        if not llm_plan:
+            return heuristic
+
         # Merge LLM output with safe defaults.
         heuristic.intent = llm_plan.get("intent", heuristic.intent) or heuristic.intent
         heuristic.agents = self._clean_agents(llm_plan.get("agents", heuristic.agents))
@@ -275,7 +299,7 @@ class LocalAgentWorkflow:
                 {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
             ],
             temperature=0.1,
-            max_tokens=800,
+            max_tokens=400,
             json_mode=True,
         )
         if not result.used or not result.text:
@@ -298,13 +322,32 @@ class LocalAgentWorkflow:
         except Exception:
             return None
 
-    def _clean_agents(self, agents: Any) -> list[str]:
+    def _clean_agents(self, agents: Any, intent: str, fallback: list[str]) -> list[str]:
         party_names = {m["agent"] for m in self.gm.get_state().get("party", [])}
+        allowed = ALLOWED_AGENTS_BY_INTENT.get(intent, set())
         clean: list[str] = []
         for agent in agents or []:
-            if isinstance(agent, str) and agent in party_names and agent not in clean:
+            if (
+                isinstance(agent, str)
+                and agent in party_names
+                and (not allowed or agent in allowed)
+                and agent not in clean
+            ):
                 clean.append(agent)
-        return clean or self._select_agents("social", "")
+        return clean or list(fallback)
+
+    def _sanitize_retrieval_query(self, query: Any) -> str:
+        if not isinstance(query, str):
+            return ""
+        parts = [part.strip() for part in re.split(r"[|,\n]+", query) if part.strip()]
+        if not parts:
+            return ""
+        candidate = " ".join(parts[:3])
+        candidate = re.sub(r"\s+", " ", candidate).strip()
+        tokens = candidate.split()
+        if len(tokens) > 12:
+            candidate = " ".join(tokens[:12])
+        return candidate
 
     def _coerce_int(self, value: Any, default: int | None = None) -> int | None:
         try:
@@ -468,10 +511,9 @@ class LocalAgentWorkflow:
 
         outcome = dice_result.get("result", "failure")
         actor = dice_result.get("actor", "")
-        patch.setdefault("flags_set", {})
-        patch["flags_set"]["last_outcome"] = outcome
-
         intent = plan.intent
+        patch.setdefault("flags_set", {})
+
         if intent == "combat":
             if outcome == "success":
                 patch["flags_set"]["enemy_damaged"] = True
@@ -561,6 +603,13 @@ class LocalAgentWorkflow:
             outcome = outcome + " " + " ".join(warnings) if outcome else " ".join(warnings)
         return setup.strip(), outcome.strip()
 
+    def _shorten_text(self, text: str, limit: int = 160) -> str:
+        text = re.sub(r"\s+", " ", (text or "").strip())
+        if len(text) <= limit:
+            return text
+        cut = text[:limit].rsplit(" ", 1)[0].strip()
+        return cut + "…" if cut else text[:limit] + "…"
+
     def _llm_compose_narration(
         self,
         action: str,
@@ -634,7 +683,7 @@ class LocalAgentWorkflow:
         if not result.used or not result.text:
             return None
 
-        text = result.text.strip()
+        text = self._shorten_text(result.text.strip(), 1200)
         delimiter = "---PART TWO---"
         if delimiter in text:
             parts = text.split(delimiter, 1)
