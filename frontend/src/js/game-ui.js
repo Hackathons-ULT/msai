@@ -25,7 +25,7 @@ function updateHUD(){
   const pct = totalMax > 0 ? (totalHp / totalMax * 100) : 0;
   hpDisplay.innerHTML = 'HP '+totalHp+'/'+totalMax+'<div class="hp-bar"><div class="hp-fill" id="hpFill" style="width:'+pct+'%"></div></div>';
   turnText.textContent = (gameState.location || '?')+' \u2014 '+(gameState.active_quest || '?');
-  recapBody.innerHTML = '\uD83D\uDCCD '+(gameState.location || 'Unknown location')+'<br>\uD83D\uDCDC '+(gameState.active_quest || 'No active quest')+'<br>\uD83C\uDFC1 '+(gameState.campaign || 'Unknown campaign');
+  renderRecap();
 }
 
 function renderTrace(traceData){

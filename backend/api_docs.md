@@ -14,9 +14,22 @@ Health check.
 
 ---
 
+## `GET /character-types`
+
+Returns the list of available character classes.
+
+**Response:**
+```json
+["Warrior", "Mage", "Rogue", "Healer"]
+```
+
+---
+
 ## `POST /turn`
 
 Main game loop — send a player action and get the narrated scene + updated state.
+
+The backend classifies intent, selects relevant party agents, retrieves lore, optionally rolls dice, and composes narration. When a dice roll is needed, the response includes `narration_setup` (GM calls for the roll) and `narration_outcome` (result shown after the frontend animates the roll).
 
 **Request:**
 ```json
@@ -31,14 +44,52 @@ Main game loop — send a player action and get the narrated scene + updated sta
 **Response:**
 ```json
 {
-  "narration": "[GM agent not wired yet] Received: I attack the goblin with my sword",
-  "choices": [],
-  "state": { "...full game state..." },
-  "trace": []
+  "narration": "The party considers: I attack the goblin with my sword. Grounded by local world pack. Warrior: Charge in decisively... The check landed as success (18 vs DC 14). Thorn pulls it off cleanly.",
+  "narration_setup": "The party considers: I attack the goblin with my sword. Grounded by local world pack. Warrior: Charge in decisively... The Game Master calls for a die roll.",
+  "narration_outcome": "The check landed as success (18 vs DC 14). Thorn pulls it off cleanly.",
+  "choices": ["Press the attack.", "Hold position and defend.", "Coordinate with the Rogue for an opening."],
+  "state": { "...full game state (see GET /state)..." },
+  "trace": [ "...reasoning trace entries..." ],
+  "plan": {
+    "action": "I attack the goblin with my sword",
+    "session_id": "default",
+    "intent": "combat",
+    "agents": ["Warrior", "Mage", "Rogue"],
+    "needs_dice": true,
+    "dice_actor": "Warrior",
+    "dice_check": "Combat",
+    "dice_difficulty": 14,
+    "state_patch": {},
+    "retrieval_query": "I attack the goblin with my sword | Whispering Woods | Find the ancient artifact",
+    "scope": "player"
+  },
+  "lore": {
+    "query": "I attack the goblin with my sword | Whispering Woods | Find the ancient artifact",
+    "scope": "player",
+    "chunks": [],
+    "citations": ["local world pack"]
+  },
+  "dice": {
+    "actor": "Warrior",
+    "check": "Combat",
+    "roll": 16,
+    "modifier": 0,
+    "total": 18,
+    "difficulty": 14,
+    "result": "success",
+    "consequence": "Thorn pulls it off cleanly."
+  },
+  "warnings": []
 }
 ```
 
-`choices` is populated by the GM agent with suggested next actions.
+When no dice roll is needed, `dice` is `null`, `narration_setup` equals `narration`, and `narration_outcome` is `""`.
+
+---
+
+## `POST /action`
+
+Alias for `POST /turn`. Accepts the same request format and returns the same response.
 
 ---
 
@@ -61,38 +112,6 @@ Returns the full game state: campaign info, party, location, flags.
     }
   ],
   "world_flags": {}
-}
-```
-
----
-
-## `POST /roll`
-
-Roll a d20 check for a character.
-
-**Request:**
-```json
-{
-  "actor": "Warrior",
-  "check": "Athletics",
-  "difficulty": 12,
-  "modifier": 0
-}
-```
-
-`modifier` is optional (default 0). `result` is one of: `success`, `partial`, `failure`.
-
-**Response:**
-```json
-{
-  "actor": "Warrior",
-  "check": "Athletics",
-  "roll": 16,
-  "modifier": 0,
-  "total": 16,
-  "difficulty": 12,
-  "result": "success",
-  "consequence": "A stroke of luck — Warrior succeeds."
 }
 ```
 

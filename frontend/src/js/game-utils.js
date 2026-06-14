@@ -66,10 +66,16 @@ function portraitSpriteHTML(role){
 }
 
 function resetDie(){
-  dieResult.style.display = 'none';
-  dieHint.style.display = 'block';
-  dieHint.textContent = '[ click to roll ]';
-  dieNum.textContent = dieMax;
+  if(lastDieResultText){
+    dieNum.textContent = lastDieTotal;
+    dieHint.style.display = 'none';
+    dieResult.textContent = lastDieResultText;
+    dieResult.style.color = lastDieColor;
+    dieResult.style.display = 'block';
+  } else {
+    dieNum.textContent = dieMax;
+    dieResult.style.display = 'none';
+  }
   dieLabel.textContent = 'D'+dieMax+' \u2014 '+currentRole.toUpperCase()+' CHECK';
   dieRolling = false;
 }

@@ -6,3 +6,4 @@ game_manager_usage.md
 .vscode
 test.py
 *.local.py
+.venv
