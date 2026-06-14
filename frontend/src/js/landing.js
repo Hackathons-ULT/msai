@@ -122,8 +122,8 @@ document.getElementById('startBtn').onclick = async () => {
   const location = selectedCampaign?.location || 'Whispering Woods';
   const quest = selectedCampaign?.active_quest || 'A new adventure';
 
-  const defaultNames = {Warrior:'Thorn', Mage:'Elara', Rogue:'Vex', Healer:'Luna'};
-  const defaultInv = {Warrior:[], Mage:['Staff'], Rogue:['Dagger','Lockpicks'], Healer:['Herbs']};
+  const defaultNames = {Warrior:'Jax', Mage:'Lyra', Healer:'Bram', Bard:'Seren'};
+  const defaultInv = {Warrior:[], Mage:['Staff'], Healer:['Medkit'], Bard:['Lute']};
   const allSelected = [myClass, ...allyClasses];
   const party = allSelected.map(agent => ({
     agent,
