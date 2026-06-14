@@ -67,7 +67,7 @@ function portraitSpriteHTML(role){
 
 function resetDie(){
   if(lastDieResultText){
-    dieNum.textContent = lastDieTotal;
+    dieNum.textContent = lastDieRoll;
     dieHint.style.display = 'none';
     dieResult.textContent = lastDieResultText;
     dieResult.style.color = lastDieColor;
