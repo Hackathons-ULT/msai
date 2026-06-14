@@ -9,7 +9,7 @@ from .retrieval import FoundryIQLoreRetriever, build_lore_retriever
 from .tools import LocalLoreRetriever, RetrievedLore, RPGTools
 
 
-@dataclass(slots=True)
+@dataclass
 class TurnPlan:
     action: str
     session_id: str
@@ -24,7 +24,7 @@ class TurnPlan:
     scope: str = "player"
 
 
-@dataclass(slots=True)
+@dataclass
 class TurnResult:
     narration: str
     narration_setup: str

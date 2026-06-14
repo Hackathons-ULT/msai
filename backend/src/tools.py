@@ -7,7 +7,7 @@ from typing import Any
 from .game_manager import GameManager
 
 
-@dataclass(slots=True)
+@dataclass
 class RetrievedChunk:
     title: str
     content: str
@@ -18,7 +18,7 @@ class RetrievedChunk:
         return asdict(self)
 
 
-@dataclass(slots=True)
+@dataclass
 class RetrievedLore:
     query: str
     scope: str

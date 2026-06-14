@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-@dataclass(slots=True)
+@dataclass
 class AgentAction:
     agent: str
     narration: str
@@ -12,7 +12,7 @@ class AgentAction:
     state_patch: dict[str, Any] | None = None
 
 
-@dataclass(slots=True)
+@dataclass
 class AgentPerspective:
     name: str
     role: str
