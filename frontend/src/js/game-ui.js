@@ -57,10 +57,14 @@ function renderTrace(traceData){
     const type = t.type || 'info';
     const cls = type === 'dice' ? 'roll' : type === 'state_update' ? 'info' : 'done';
     let text;
-    if(type === 'dice') text = t.actor+' '+t.check+' \u2192 '+t.total;
-    else if(type === 'narration') text = '\u270E '+t.text;
+    if(type === 'dice') text = (t.actor||'?')+' '+t.check+' \u2192 '+t.total;
+    else if(type === 'narration') text = '\u270E '+(t.text||'').slice(0,60);
     else if(type === 'state_update') text = '\u21B3 '+(t.location?t.location:'')+(t.health_changes?' HP*':'')+(t.flags_set?' [F]':'');
-    else text = '\u2022 '+JSON.stringify(t).slice(0,40);
+    else if(type === 'agent_intro'){ const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===(t.agent||'')); text = '\u25B6 '+(mem?mem.name:t.agent||'?')+' ready'; }
+    else if(type === 'agent_action'){ const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===(t.agent||'')); text = '\u25B6 '+(mem?mem.name:t.agent||'?')+': '+(t.action||'').slice(0,35); }
+    else if(type === 'plan') text = '[*] '+(t.intent||t.text||'planning').slice(0,45);
+    else if(type === 'lore') text = '[W] lore: '+(t.query||'').slice(0,35);
+    else text = '\u2022 '+(t.text||t.action||t.agent||type).toString().slice(0,45);
     return '<div class="tl '+cls+'">'+text+'</div>';
   }).join('');
   traceFeed.innerHTML = feedHtml || '<div class="tl info">\u27F3 Awaiting actions...</div>';
@@ -79,8 +83,18 @@ function renderTrace(traceData){
       if(t.location) text += ' - '+t.location;
       if(t.health_changes) text += ' - HP: '+Object.entries(t.health_changes).map(([k,v]) => k+' '+(v>0?'+':'')+v).join(', ');
       if(t.flags_set) text += ' - '+Object.keys(t.flags_set).join(', ');
+    } else if(type === 'agent_intro'){
+      const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===(t.agent||''));
+      text = '\u25b6 '+(mem?mem.name:t.agent||'?')+' is ready';
+    } else if(type === 'agent_action'){
+      const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===(t.agent||''));
+      text = '\u25b6 '+(mem?mem.name:t.agent||'?')+': '+(t.action||'');
+    } else if(type === 'plan'){
+      text = '[*] PLAN: '+(t.intent||t.text||'');
+    } else if(type === 'lore'){
+      text = '[W] LORE FETCH: '+(t.query||'');
     } else {
-      text = '\u2022 '+JSON.stringify(t);
+      text = '\u2022 '+(t.text||t.action||t.agent||type)+' '+JSON.stringify(t).slice(0,60);
     }
     return '<div class="tf-line '+cls+'">'+text+'</div>';
   }).join('');
