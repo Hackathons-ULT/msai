@@ -11,11 +11,11 @@
   <div class="top">
     <div class="sidebar">
       <div class="sb-title">- MENU -</div>
-      <div class="sb-btn active" onclick="setStage('agents')"><span class="ico">[X]</span>PARTY</div>
-      <div class="sb-btn" onclick="setStage('recap')"><span class="ico">[S]</span>RECAP</div>
-      <div class="sb-btn" onclick="setStage('lore')"><span class="ico">[W]</span>LORE</div>
-      <div class="sb-btn" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
-      <div class="sb-btn" onclick="setStage('trace')"><span class="ico">[T]</span>TRACE</div>
+      <div class="sb-btn active" data-view="agents" onclick="setStage('agents')"><span class="ico">[X]</span>PARTY</div>
+      <div class="sb-btn" data-view="recap" onclick="setStage('recap')"><span class="ico">[S]</span>RECAP</div>
+      <div class="sb-btn" data-view="lore" onclick="setStage('lore')"><span class="ico">[W]</span>LORE</div>
+      <div class="sb-btn" data-view="die" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
+      <div class="sb-btn" data-view="trace" onclick="setStage('trace')"><span class="ico">[T]</span>TRACE</div>
       <div class="sb-sep"></div>
       <div class="trace-box">
         <div class="trace-hd">&gt; LIVE TRACE</div>

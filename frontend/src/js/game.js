@@ -15,10 +15,29 @@ function pushDialogue(speaker, text){
   renderRecap();
 }
 
+const LORE_TERMS = ['Clockwork Plague','The Sump','Aethelgard','Pressure Core','Sector-04','Upper-Spire','Undergrid','brass cylinder','aether-core','pressure valves','emergency grid-lock','holo-display','swampfolk','automaton','Zenith Wards','master console','steam pipes','Engineers','Hidden Blade'];
+
+function highlightTerms(html){
+  let result = html;
+  LORE_TERMS.slice().sort((a,b)=>b.length-a.length).forEach(t=>{
+    const safe = t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re = new RegExp('(?<![\'">])\\b('+safe+')\\b(?![^<]*>)','gi');
+    result = result.replace(re,'<span class="narr-link" onclick="askAbout(this)">$1</span>');
+  });
+  return result;
+}
+
+window.askAbout = function(el){
+  const term = el.textContent;
+  pInput.value = 'Tell me more about '+term;
+  pInput.focus();
+  if(typeof _sfx !== 'undefined') _sfx.send();
+};
+
 function appendNarration(html){
   let current = narrText.innerHTML;
   current = current.replace('<span class="cursor"></span>', '');
-  narrText.innerHTML = current + html + '<span class="cursor"></span>';
+  narrText.innerHTML = current + highlightTerms(html) + '<span class="cursor"></span>';
   narrText.scrollTop = narrText.scrollHeight;
 }
 
@@ -61,9 +80,10 @@ async function sendAct(){
         }
         if(res.followups && res.followups.length){
           setTimeout(function(){
-            const agentTexts = res.followups.map(f =>
-              '<span style="color:#c8922a">'+f.agent+':</span> '+f.narration
-            ).join('<br>');
+            const agentTexts = res.followups.map(f=>{
+              const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===f.agent);
+              return '<span style="color:#c8922a">'+(mem?mem.name:f.agent)+':</span> '+highlightTerms(f.narration);
+            }).join('<br>');
             appendNarration('<br><br>' + agentTexts);
             res.followups.forEach(f => pushDialogue(f.agent, f.narration));
             setTimeout(function(){ setStage('agents'); }, 2000);
@@ -206,13 +226,15 @@ async function initGame(){
   await fetchState();
   renderParty();
   setRole(currentRole);
+  const loreEl = document.getElementById('loreBody');
+  if(loreEl) loreEl.innerHTML = '<b>AETHELGARD</b><br>A vast steampunk city powered by coal and aether-steam. Five vertical districts rise from The Undergrid to the Upper-Spire.<br><br><b>THE SUMP</b><br>The lowest inhabited district. Choking smog, rusted pipes, desperate workers scraping to survive beneath the weight of the city above.<br><br><b>CLOCKWORK PLAGUE</b><br>A mysterious corruption spreading through the city\'s machinery. Automatons malfunction, pressure cores overheat, and workers fall sick from toxic discharge.<br><br><b>PRESSURE CORE (SECTOR-04)</b><br>Giant steam regulators that power each district. The Sector-04 core has been deliberately sabotaged.<br><br><b>THE ENGINEERS</b><br>The ruling class of the Upper-Spire. They control the pressure systems — and may be behind the Plague to clear out the lower districts.<br><br><b>BRASS CYLINDER</b><br>A legendary override device. Whoever controls it can reset the master console and halt the Plague — or unleash it entirely.';
   try {
     const traceData = await apiGet('/trace');
     renderTrace(traceData);
   } catch {}
   const hasIntro = await checkIntro();
   if(!hasIntro && gameState){
-    const welcome = 'Welcome, '+playerName+'. The '+(gameState.campaign || 'adventure')+' begins. You stand at '+(gameState.location || 'the starting point')+'. '+(gameState.active_quest || 'Your quest awaits.');
+    const welcome = 'Welcome, '+playerName+'. '+(gameState.campaign || 'An adventure')+' begins. You stand at '+(gameState.location || 'the starting point')+'. '+(gameState.active_quest || 'Your quest awaits.');
     narrText.innerHTML = welcome + '<span class="cursor"></span>';
     pushDialogue('GM', welcome);
   }

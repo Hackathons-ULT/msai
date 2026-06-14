@@ -683,7 +683,7 @@ class LocalAgentWorkflow:
         if not result.used or not result.text:
             return None
 
-        text = result.text.strip()
+        text = result.text.strip().replace('—', ' - ').replace('–', '-')
         delimiter = "---PART TWO---"
         if delimiter in text:
             parts = text.split(delimiter, 1)

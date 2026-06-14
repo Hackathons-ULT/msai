@@ -8,16 +8,21 @@ function renderParty(){
     const isLit = key === activeKey;
     const STAT_ABBR = {strength:'STR',dexterity:'DEX',constitution:'CON',intelligence:'INT',wisdom:'WIS',charisma:'CHA'};
     const STAT_TIP = {strength:'Physical power: melee attacks and forced actions',dexterity:'Agility and reflexes: stealth, speed, dodging',constitution:'Toughness: endurance and resistance to harm',intelligence:'Knowledge and reasoning: arcana and investigation',wisdom:'Perception and judgement: awareness and willpower',charisma:'Social force: persuasion, deception and charm'};
+    const isRivalStats = m.agent.toLowerCase() === 'rival';
     const statRows = Object.keys(STAT_ABBR).map(s =>
-      '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(m[s]??10)+'</td></tr>'
+      '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(isRivalStats ? '???' : (m[s]??10))+'</td></tr>'
     ).join('');
-    html += '<div class="agent-card'+(isLit?' lit':'')+'" data-role="'+m.agent+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+m.agent.toUpperCase()+'<span>'+m.name+' '+(isLit?'\u2694 active':'\u25C8 standby')+'</span></div><table class="stat-table">'+statRows+'</table></div>';
+    const isRival = key === 'rival';
+    const cardCls = 'agent-card'+(isLit?' lit':'')+(isRival?' rival-card':'');
+    const statusLabel = isRival ? '??? unknown' : (isLit ? '* active' : '- standby');
+    const lblName = isRival ? '???' : m.name;
+    html += '<div class="'+cardCls+'" data-role="'+m.agent+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+m.agent.toUpperCase()+'<span>'+lblName+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
   });
   agentView.innerHTML = html;
   updateHUD();
   agentView.onclick = (e) => {
     const card = e.target.closest('.agent-card');
-    if(!card) return;
+    if(!card || card.classList.contains('rival-card')) return;
     setRole(card.dataset.role.toLowerCase());
   };
 }
@@ -79,7 +84,7 @@ function setRole(roleKey){
   portraitEl.style.borderColor = d.borderColor;
   speakerName.className = 'speaker ' + (d.speakerCls || '');
   speakerName.style.color = d.speakerColor;
-  speakerName.textContent = member ? member.name+' ('+member.agent+')' : (d.badge || roleKey.toUpperCase());
+  speakerName.textContent = member ? member.name : (d.badge || roleKey.toUpperCase());
   portraitContainer.innerHTML = portraitSpriteHTML(roleKey);
   document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('lit'));
   if(member){
@@ -116,8 +121,7 @@ function setStage(name){
     target.style.flexDirection = (name === 'agents' || name === 'die') ? '' : 'column';
   }
   document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
-  const idx = Object.keys(VIEWS).indexOf(name);
-  const btns = document.querySelectorAll('.sb-btn');
-  if(btns[idx]) btns[idx].classList.add('active');
+  const btn = document.querySelector('.sb-btn[data-view="'+name+'"]');
+  if(btn) btn.classList.add('active');
   if(name === 'die') resetDie();
 }
