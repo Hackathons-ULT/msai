@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.agent_workflow import LocalAgentWorkflow
+from src.class_stats import apply_class_stats
 from src.game_manager import GameManager
 from src.state import GameState, PartyMember
 from src.retrieval import build_lore_retriever
@@ -78,7 +79,12 @@ app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 @app.get("/character-types")
 def character_types():
-    return ["Warrior", "Mage", "Healer", "Bard"]  # Rival (Kael) is AI-only, never player-pickable
+    return [
+        {"name": "Warrior", "ico": "\u2694", "desc": "Brute strength & steel"},
+        {"name": "Mage", "ico": "\u2726", "desc": "Arcane wisdom & power"},
+        {"name": "Healer", "ico": "\u271A", "desc": "Restoration & support"},
+        {"name": "Bard", "ico": "\u266B", "desc": "Music & inspiration"},
+    ]  # Rival (Kael) is AI-only, never player-pickable
 
 
 @app.get("/")
@@ -150,7 +156,7 @@ def get_intro():
 @app.post("/reset")
 def reset_game(body: ResetRequest):
     global gm, workflow
-    party = [PartyMember.from_dict(m) for m in body.party]
+    party = [apply_class_stats(PartyMember.from_dict(m)) for m in body.party]
     gm = GameManager(
         state=GameState(
             campaign=body.campaign,

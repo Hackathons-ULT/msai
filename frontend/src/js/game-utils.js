@@ -76,6 +76,6 @@ function resetDie(){
     dieNum.textContent = dieMax;
     dieResult.style.display = 'none';
   }
-  dieLabel.textContent = 'D'+dieMax+' \u2014 '+currentRole.toUpperCase()+' CHECK';
+  dieLabel.textContent = 'D'+dieMax+' - '+currentRole.toUpperCase()+' CHECK';
   dieRolling = false;
 }

@@ -1,13 +1,5 @@
 const API_BASE = 'http://localhost:8000';
-const DEFAULT_CLASSES = ['Warrior', 'Mage', 'Rogue', 'Healer'];
 const MAX_PARTY = 4;
-
-const CLASS_META = {
-  Warrior:{ico:'\u2694',desc:'Brute strength & steel'},
-  Mage:{ico:'\u2726',desc:'Arcane wisdom & power'},
-  Rogue:{ico:'\u25C8',desc:'Stealth & cunning'},
-  Healer:{ico:'\u271A',desc:'Restoration & support'}
-};
 
 async function apiPost(endpoint, body){
   const r = await fetch(`${API_BASE}${endpoint}`, {
@@ -22,12 +14,17 @@ let myClass = null;
 let allyClasses = [];
 let selectedCampaign = null;
 let uploadedFileContent = null;
-let availableClasses = DEFAULT_CLASSES;
+let availableClasses = [];
+let classMeta = {};
 
 async function loadClasses(){
   try {
     const r = await fetch(`${API_BASE}/character-types`, {signal:AbortSignal.timeout(2000)});
-    if(r.ok) availableClasses = await r.json();
+    if(r.ok) {
+      const data = await r.json();
+      availableClasses = data.map(c => c.name);
+      classMeta = Object.fromEntries(data.map(c => [c.name, {ico: c.ico, desc: c.desc}]));
+    }
   } catch {}
   renderClasses();
 }
@@ -53,7 +50,7 @@ function renderClasses(){
   const grid = document.getElementById('classGrid');
   grid.innerHTML = '';
   availableClasses.forEach(cls => {
-    const meta = CLASS_META[cls] || {ico:'?',desc:''};
+    const meta = classMeta[cls] || {ico:'?',desc:''};
     const card = document.createElement('div');
     card.className = 'class-card';
     if(myClass === cls) card.classList.add('you');
@@ -86,7 +83,7 @@ async function loadExistingCampaign(){
     list.innerHTML = '';
     const item = document.createElement('div');
     item.className = 'camp-item';
-    item.innerHTML = `<div class="ci-title">${state.campaign || 'Unknown'}</div><div class="ci-detail">\uD83D\uDCCD ${state.location || '?'} — ${state.active_quest || '?'}</div>`;
+    item.innerHTML = `<div class="ci-title">${state.campaign || 'Unknown'}</div><div class="ci-detail">${state.location || '?'} - ${state.active_quest || '?'}</div>`;
     item.onclick = () => {
       document.querySelectorAll('.camp-item').forEach(c => c.classList.remove('selected'));
       item.classList.add('selected');
@@ -103,7 +100,7 @@ document.getElementById('uploadZone').onclick = () => document.getElementById('f
 document.getElementById('fileInput').onchange = (e) => {
   const f = e.target.files[0];
   if(!f) return;
-  document.getElementById('uploadStatus').textContent = `\uD83D\uDCC4 ${f.name} (${(f.size/1024).toFixed(1)} KB) — upload coming soon`;
+  document.getElementById('uploadStatus').textContent = `${f.name} (${(f.size/1024).toFixed(1)} KB) - upload coming soon`;
 };
 
 function validateForm(){
@@ -136,7 +133,7 @@ document.getElementById('startBtn').onclick = async () => {
   }));
 
   try {
-    await apiPost('/reset', {campaign: campaignName, location, active_quest: quest, party, world_flags: {}});
+    await apiPost('/reset', {campaign: campaignName, location, active_quest: quest, party, world_flags: {}, player_character: myClass});
   } catch {}
 
   localStorage.setItem('opencode_playerName', name);

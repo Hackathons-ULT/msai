@@ -19,7 +19,7 @@ function renderRecap(){
   const members = gameState.party || [];
   let totalHp = 0, totalMax = 0;
   members.forEach(m => { totalHp += m.health; totalMax += m.max_health; });
-  const meta = '\uD83D\uDCCD '+(gameState.location || '?')+' \u2014 '+(gameState.active_quest || '?')+'<br>\uD83C\uDFC1 '+(gameState.campaign || '?')+'  |  \u2694 HP '+totalHp+'/'+totalMax;
+  const meta = (gameState.location || '?')+' - '+(gameState.active_quest || '?')+'<br>'+(gameState.campaign || '?')+'  |  \u2694 HP '+totalHp+'/'+totalMax;
   const lines = dialogueHistory.map(e => {
     const cls = e.speaker === 'You' ? 'dl-player' : 'dl-gm';
     return '<div class="dl-entry '+cls+'"><span class="dl-speaker">['+e.speaker+']:</span> '+e.text+'</div>';
@@ -109,7 +109,7 @@ function startDieAnimation(finalTotal, finalResult, finalConsequence, onComplete
       numEl.textContent = finalTotal;
       dieHint.style.display = 'none';
       lastDieTotal = finalTotal;
-      lastDieResultText = 'ROLLED '+finalTotal+' \u2014 '+outcomeLabel + (finalConsequence ? ' \u2014 '+finalConsequence : '');
+      lastDieResultText = 'ROLLED '+finalTotal+' - '+outcomeLabel + (finalConsequence ? ' - '+finalConsequence : '');
       lastDieColor = outcome ? '#2a5a22' : '#7a2222';
       dieResult.textContent = lastDieResultText;
       dieResult.style.color = lastDieColor;
@@ -117,7 +117,7 @@ function startDieAnimation(finalTotal, finalResult, finalConsequence, onComplete
       dieRolling = false;
       const line = document.createElement('div');
       line.className = 'tl roll';
-      line.textContent = '\uD83C\uDFB2 d'+max+' \u2192 '+finalTotal+' ('+outcomeLabel.toLowerCase()+')';
+      line.textContent = 'd'+max+' \u2192 '+finalTotal+' ('+outcomeLabel.toLowerCase()+')';
       traceFeed.appendChild(line);
       while(traceFeed.children.length > 8) traceFeed.removeChild(traceFeed.firstChild);
       fetchTrace();

@@ -10,12 +10,12 @@
 
   <div class="top">
     <div class="sidebar">
-      <div class="sb-title">— MENU —</div>
+      <div class="sb-title">- MENU -</div>
       <div class="sb-btn active" onclick="setStage('agents')"><span class="ico">⚔</span>PARTY</div>
-      <div class="sb-btn" onclick="setStage('recap')"><span class="ico">📜</span>RECAP</div>
-      <div class="sb-btn" onclick="setStage('lore')"><span class="ico">🗺</span>LORE</div>
-      <div class="sb-btn" onclick="setStage('die')" id="dieBtn"><span class="ico">🎲</span>DIE ROLL</div>
-      <div class="sb-btn" onclick="setStage('trace')"><span class="ico">📋</span>TRACE</div>
+      <div class="sb-btn" onclick="setStage('recap')"><span class="ico">[S]</span>RECAP</div>
+      <div class="sb-btn" onclick="setStage('lore')"><span class="ico">[W]</span>LORE</div>
+      <div class="sb-btn" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
+      <div class="sb-btn" onclick="setStage('trace')"><span class="ico">[T]</span>TRACE</div>
       <div class="sb-sep"></div>
       <div class="trace-box">
         <div class="trace-hd">▸ LIVE TRACE</div>
@@ -34,7 +34,7 @@
       <div class="agent-view" id="agentView"></div>
 
       <div class="die-view" id="dieView">
-        <div class="die-label" id="dieLabel">D20 — CHECK</div>
+        <div class="die-label" id="dieLabel">D20 - CHECK</div>
         <div class="die-face" id="dieFace">
           <div class="die-number" id="dieNum">20</div>
         </div>
@@ -48,14 +48,14 @@
       </div>
 
       <div class="content-view" id="recapView">
-        <div class="cv-hd">📜 SESSION RECAP</div>
+        <div class="cv-hd">[S] SESSION RECAP</div>
         <div class="cv-body" id="recapBody">
           Your adventure begins...
         </div>
       </div>
 
       <div class="content-view" id="loreView">
-        <div class="cv-hd">🗺 WORLD LORE</div>
+        <div class="cv-hd">[W] WORLD LORE</div>
         <div class="cv-body" id="loreBody">
           The world awaits discovery.
         </div>

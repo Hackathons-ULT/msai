@@ -39,6 +39,17 @@ class TurnResult:
     warnings: list[str]
 
 
+CHECK_TO_STAT = {
+    "Combat": "strength",
+    "Support": "wisdom",
+    "Stealth": "dexterity",
+    "Investigation": "intelligence",
+    "Traversal": "dexterity",
+    "Arcana": "intelligence",
+    "Persuasion": "charisma",
+}
+
+
 class LocalAgentWorkflow:
     """A local orchestration layer that mirrors the intended Agent Framework flow.
 
@@ -129,10 +140,18 @@ class LocalAgentWorkflow:
 
         dice_result = None
         if plan.needs_dice:
+            actor = plan.dice_actor or self._primary_actor(plan.agents)
+            check = plan.dice_check or self._default_check_for_intent(plan.intent)
+            stat_name = CHECK_TO_STAT.get(check, "strength")
+            state = self.gm.get_state()
+            member = next((m for m in state.get("party", []) if m.get("agent") == actor), None)
+            stat_value = member.get(stat_name, 10) if member else 10
+            modifier = (stat_value - 10) // 2
             dice_result = self.tools.roll_dice(
-                actor=plan.dice_actor or self._primary_actor(plan.agents),
-                check=plan.dice_check or self._default_check_for_intent(plan.intent),
+                actor=actor,
+                check=check,
                 difficulty=plan.dice_difficulty or self._difficulty_for_intent(plan.intent),
+                modifier=modifier,
             )
             self.gm.record_trace("dice", dice_result)
 
@@ -231,6 +250,9 @@ class LocalAgentWorkflow:
         agents = list(mapping.get(intent, ["Warrior", "Mage"]))
         if "rival" in lowered_action or "trust" in lowered_action:
             agents.append("Rival")
+        # Filter to only agents that exist in the current party.
+        party_names = {m["agent"] for m in self.gm.get_state().get("party", [])}
+        agents = [a for a in agents if a in party_names]
         # Preserve order while deduplicating.
         seen = set()
         deduped = []
@@ -238,6 +260,8 @@ class LocalAgentWorkflow:
             if agent not in seen:
                 seen.add(agent)
                 deduped.append(agent)
+        if not deduped:
+            deduped = list(party_names)[:1] if party_names else ["Warrior"]
         return deduped
 
     def _build_retrieval_query(self, action: str, intent: str) -> str:
@@ -324,26 +348,66 @@ class LocalAgentWorkflow:
                 break
 
         if any(k in lowered for k in ("quest", "artifact", "sigil")) and state.get("active_quest"):
-            # Leave the quest as-is unless the action clearly advances it.
             if "find" in lowered or "recover" in lowered or "retrieve" in lowered:
                 patch["flags_set"] = {"quest_progress": "advanced"}
 
-        if dice_result:
-            if dice_result.get("result") == "success":
-                patch.setdefault("flags_set", {})
-                patch["flags_set"]["last_outcome"] = "success"
-            elif dice_result.get("result") == "partial":
-                patch.setdefault("flags_set", {})
-                patch["flags_set"]["last_outcome"] = "partial"
-            else:
-                patch.setdefault("flags_set", {})
-                patch["flags_set"]["last_outcome"] = "failure"
+        if not dice_result:
+            cleaned = {k: v for k, v in patch.items() if v}
+            return cleaned
 
-        if "heal" in lowered:
-            patch.setdefault("health_changes", {})
-            patch["health_changes"]["Healer"] = 1
+        outcome = dice_result.get("result", "failure")
+        actor = dice_result.get("actor", "")
+        patch.setdefault("flags_set", {})
+        patch["flags_set"]["last_outcome"] = outcome
 
-        # Avoid generating no-op patches with empty nested dicts.
+        intent = plan.intent
+        if intent == "combat":
+            if outcome == "success":
+                patch["flags_set"]["enemy_damaged"] = True
+            elif outcome == "failure":
+                patch.setdefault("health_changes", {})
+                patch["health_changes"][actor] = -2
+
+        elif intent == "support":
+            party = state.get("party", [])
+            wounded = [m for m in party if m.get("health", 20) < m.get("max_health", 20)]
+            if outcome == "success" and wounded:
+                patch.setdefault("health_changes", {})
+                patch["health_changes"][wounded[0]["agent"]] = 4
+            elif outcome == "partial" and wounded:
+                patch.setdefault("health_changes", {})
+                patch["health_changes"][wounded[0]["agent"]] = 2
+
+        elif intent == "stealth":
+            if outcome == "success":
+                patch["flags_set"]["undetected"] = True
+            elif outcome == "failure":
+                patch["flags_set"]["detected"] = True
+
+        elif intent == "investigate":
+            if outcome == "success":
+                patch["flags_set"]["clue_found"] = True
+            elif outcome == "partial":
+                patch["flags_set"]["partial_clue"] = True
+
+        elif intent == "travel":
+            if outcome == "failure":
+                patch["flags_set"]["lost"] = True
+
+        elif intent == "arcana":
+            if outcome == "success":
+                patch["flags_set"]["lore_revealed"] = True
+            elif outcome == "partial":
+                patch["flags_set"]["partial_lore"] = True
+            elif outcome == "failure":
+                patch["flags_set"]["wild_magic"] = True
+
+        elif intent == "social":
+            if outcome == "success":
+                patch["flags_set"]["persuaded"] = True
+            elif outcome == "failure":
+                patch["flags_set"]["offended"] = True
+
         cleaned = {k: v for k, v in patch.items() if v}
         return cleaned
 

@@ -11,6 +11,15 @@ class PartyMember:
     health: int = 20
     max_health: int = 20
     inventory: list[str] = field(default_factory=list)
+    strength: int = 10
+    dexterity: int = 10
+    constitution: int = 10
+    intelligence: int = 10
+    wisdom: int = 10
+    charisma: int = 10
+
+    def modifier(self, stat: int) -> int:
+        return (stat - 10) // 2
 
     def to_dict(self) -> dict:
         return asdict(self)
