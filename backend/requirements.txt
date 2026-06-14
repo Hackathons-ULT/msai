@@ -3,6 +3,6 @@ fastapi>=0.115,<1
 uvicorn>=0.34,<1
 requests>=2.32,<3
 python-dotenv>=1.0,<2
-
+openai 
 # Dev
 pytest>=8.0,<9
