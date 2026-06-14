@@ -1,3 +1,11 @@
+const AGENT_DESC = {
+  warrior:'Jax - Former factory enforcer. Best for combat, forcing doors, and head-on confrontations.',
+  mage:'Lyra - Self-taught scholar. Best for deciphering runes, investigation, and arcane problems.',
+  healer:'Bram - Field medic. Best for keeping the party alive, negotiating peacefully, and moral dilemmas.',
+  bard:'Seren - Wandering minstrel. Best for persuasion, info-gathering, and social manipulation.',
+  rival:'Kael - A smuggler who knows The Sump\'s back routes. His true allegiance is unknown.',
+};
+
 function renderParty(){
   if(!gameState) return;
   const members = gameState.party || [];
@@ -8,23 +16,26 @@ function renderParty(){
     const isLit = key === activeKey;
     const STAT_ABBR = {strength:'STR',dexterity:'DEX',constitution:'CON',intelligence:'INT',wisdom:'WIS',charisma:'CHA'};
     const STAT_TIP = {strength:'Physical power: melee attacks and forced actions',dexterity:'Agility and reflexes: stealth, speed, dodging',constitution:'Toughness: endurance and resistance to harm',intelligence:'Knowledge and reasoning: arcana and investigation',wisdom:'Perception and judgement: awareness and willpower',charisma:'Social force: persuasion, deception and charm'};
-    const isRivalStats = m.agent.toLowerCase() === 'rival';
+    const isRival = key === 'rival';
+    const isRevealed = isRival && gameState.world_flags && gameState.world_flags.kael_revealed;
+    const isRivalStats = isRival && isRevealed;
     const statRows = Object.keys(STAT_ABBR).map(s =>
       '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(isRivalStats ? '???' : (m[s]??10))+'</td></tr>'
     ).join('');
-    const isRival = key === 'rival';
-    const isRevealed = isRival && gameState.world_flags && gameState.world_flags.kael_revealed;
-    const cardCls = 'agent-card'+(isLit?' lit':'')+(isRival?' rival-card':'');
+    const cardCls = 'agent-card'+(isLit?' lit':'')+(isRival && isRevealed?' rival-card':'');
     const displayName = m.name.toUpperCase();
     const displayRole = isRival ? (isRevealed ? 'RIVAL' : 'SMUGGLER') : m.agent.toUpperCase();
-    const statusLabel = isRival ? (isRevealed ? '! exposed' : '- unknown') : (isLit ? '* active' : '- standby');
-    html += '<div class="'+cardCls+'" data-role="'+m.agent+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
+    const statusLabel = isLit ? '* active' : (isRival && isRevealed ? '! exposed' : '- standby');
+    const tipText = AGENT_DESC[key] || '';
+    html += '<div class="'+cardCls+'" data-role="'+m.agent+'" data-tip="'+tipText+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
   });
   agentView.innerHTML = html;
   updateHUD();
   agentView.onclick = (e) => {
     const card = e.target.closest('.agent-card');
-    if(!card || card.classList.contains('rival-card')) return;
+    if(!card) return;
+    const myClass = (localStorage.getItem('opencode_playerClass') || 'Warrior').toLowerCase();
+    if(card.dataset.role.toLowerCase() !== myClass) return;
     setRole(card.dataset.role.toLowerCase());
   };
 }
@@ -110,9 +121,13 @@ function showPlayer(){
   setRole(currentRole);
 }
 
-const VIEWS = {agents:'agentView',die:'dieView',trace:'traceFull',recap:'recapView',lore:'loreView'};
+const VIEWS = {agents:'agentView',die:'dieView',trace:'traceFull',recap:'recapView',lore:'loreView',map:'mapView'};
 
 function setStage(name){
+  if(name === 'die'){
+    const dieBtn = document.querySelector('.sb-btn[data-view="die"]');
+    if(dieBtn && dieBtn.classList.contains('locked')) return;
+  }
   Object.values(VIEWS).forEach(id => {
     const el = $(id);
     if(el) el.style.display = 'none';
@@ -126,4 +141,5 @@ function setStage(name){
   const btn = document.querySelector('.sb-btn[data-view="'+name+'"]');
   if(btn) btn.classList.add('active');
   if(name === 'die') resetDie();
+  if(name === 'map' && typeof renderMap === 'function') renderMap();
 }

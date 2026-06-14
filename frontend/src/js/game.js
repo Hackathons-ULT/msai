@@ -3,12 +3,87 @@ let currentRole = 'warrior';
 let playerName = '';
 let playerClass = '';
 let dieRolling = false;
+let dieEverRolled = false;
 const dieMax = 20;
 let lastDieRoll = 20;
 let lastDieTotal = 20;
 let lastDieResultText = '';
 let lastDieColor = '';
 let dialogueHistory = [];
+let dieHistory = [];
+
+// --- Dynamic lore ---
+const LORE_ENTRIES = {
+  aethelgard:{title:'AETHELGARD',body:'A vast steampunk city powered by coal and aether-steam. Five vertical districts rise from The Undergrid to the Upper-Spire.'},
+  the_sump:{title:'THE SUMP',body:'The lowest inhabited district. Choking smog, rusted pipes, desperate workers scraping to survive beneath the weight of the city above.'},
+  clockwork_plague:{title:'CLOCKWORK PLAGUE',body:'A mysterious corruption spreading through the city\'s machinery. Automatons malfunction, pressure cores overheat, and workers fall sick from toxic discharge.'},
+  pressure_core:{title:'PRESSURE CORE (SECTOR-04)',body:'Giant steam regulators that power each district. The Sector-04 core has been deliberately sabotaged.'},
+  engineers:{title:'THE ENGINEERS',body:'The ruling class of the Upper-Spire. They control the pressure systems - and may be behind the Plague to clear out the lower districts.'},
+  brass_cylinder:{title:'BRASS CYLINDER',body:'A legendary override device. Whoever controls it can reset the master console and halt the Plague - or unleash it entirely.'},
+  upper_spire:{title:'UPPER-SPIRE',body:'The topmost district where the Engineers live in relative clean air above the smog layer. Access tightly controlled.'},
+  undergrid:{title:'UNDERGRID',body:'The labyrinth of tunnels, pipes, and maintenance shafts beneath The Sump. Few people go down willingly.'},
+  zenith_wards:{title:'ZENITH WARDS',body:'A mid-city district of guild halls, merchant houses, and the few citizens wealthy enough to breathe filtered air.'},
+  glass_arch:{title:'GLASS ARCH',body:'A trade hub spanning two districts, known for its aether-lit marketplace and back-alley information brokers.'},
+  sunken_market:{title:'SUNKEN MARKET',body:'A flooded lower market district where swampfolk and Sump residents trade salvage, contraband, and rumours.'},
+  hidden_blade:{title:'HIDDEN BLADE',body:'A concealed weapon favoured by smugglers and spies. Compact, quiet, and easy to deny.'},
+  aether_core:{title:'AETHER-CORE',body:'A crystallised form of condensed aether used to power advanced machinery. Extremely volatile if corrupted.'},
+};
+
+const LORE_TERM_MAP = {
+  'Aethelgard':'aethelgard','The Sump':'the_sump','Clockwork Plague':'clockwork_plague',
+  'Pressure Core':'pressure_core','Sector-04':'pressure_core','Engineers':'engineers',
+  'Brass Cylinder':'brass_cylinder','brass cylinder':'brass_cylinder',
+  'Upper-Spire':'upper_spire','Undergrid':'undergrid','Zenith Wards':'zenith_wards',
+  'Glass Arch':'glass_arch','Sunken Market':'sunken_market',
+  'Hidden Blade':'hidden_blade','hidden blade':'hidden_blade',
+  'aether-core':'aether_core','Aether-core':'aether_core',
+};
+
+const unlockedLore = new Set(['aethelgard','the_sump','clockwork_plague']);
+
+function renderLore(){
+  const loreEl = document.getElementById('loreBody');
+  if(!loreEl) return;
+  const html = Object.entries(LORE_ENTRIES)
+    .filter(([k])=>unlockedLore.has(k))
+    .map(([,e])=>'<b>'+e.title+'</b><br>'+e.body)
+    .join('<br><br>');
+  loreEl.innerHTML = html || 'The world awaits discovery.';
+}
+
+function scanForLore(text){
+  let added = 0;
+  Object.entries(LORE_TERM_MAP).forEach(([term,key])=>{
+    if(!unlockedLore.has(key) && text.toLowerCase().includes(term.toLowerCase())){
+      unlockedLore.add(key); added++;
+    }
+  });
+  if(added > 0){ renderLore(); showToast('[W] New lore discovered!'); }
+}
+
+// --- Map ---
+const DISTRICTS = [
+  {key:'upper-spire',label:'UPPER-SPIRE',desc:'Engineers domain - sealed towers above the smog'},
+  {key:'zenith wards',label:'ZENITH WARDS',desc:'Guild halls and filtered-air housing'},
+  {key:'glass arch',label:'GLASS ARCH',desc:'Aether-lit trade hub and info brokers'},
+  {key:'sunken market',label:'SUNKEN MARKET',desc:'Flooded lower markets, salvage traders'},
+  {key:'the sump',label:'THE SUMP',desc:'Industrial slums, choking smog, the plague epicentre'},
+  {key:'undergrid',label:'UNDERGRID',desc:'Maintenance tunnels deep below the city'},
+];
+
+function renderMap(){
+  const mapEl = document.getElementById('mapBody');
+  if(!mapEl) return;
+  const loc = ((gameState && gameState.location) || '').toLowerCase();
+  const rows = DISTRICTS.map((d,i)=>{
+    const active = loc.includes(d.key);
+    const arrow = active ? '&gt;&gt;' : '  ';
+    const cls = active ? 'map-row map-active' : 'map-row';
+    return '<div class="'+cls+'">'+arrow+' <b>'+d.label+'</b><span class="map-desc"> - '+d.desc+'</span></div>';
+  }).join('');
+  const legend = '<div class="map-note">&gt;&gt; = current location</div>';
+  mapEl.innerHTML = '<pre class="map-frame">+-----------------------------+\n| AETHELGARD - CITY DISTRICTS |\n+-----------------------------+</pre>'+rows+legend;
+}
 
 function pushDialogue(speaker, text){
   dialogueHistory.push({speaker, text});
@@ -55,10 +130,60 @@ function renderRecap(){
   recapBody.scrollTop = recapBody.scrollHeight;
 }
 
+const HELP_TEXT = '<b>[ GAME MASTER - HELP ]</b><br><br>'
+  +'Type any action and hit ACT. The AI party reacts and the story unfolds.<br><br>'
+  +'<b>EXAMPLE ACTIONS:</b><br>'
+  +'"I look around The Sump for clues about the Clockwork Plague"<br>'
+  +'"I ask Kael what he knows about this area"<br>'
+  +'"I investigate the nearest pressure pipe"<br>'
+  +'"I try to sneak past the guard"<br>'
+  +'"I talk to the locals about the plague symptoms"<br><br>'
+  +'<b>HOW IT WORKS:</b><br>'
+  +'Risky actions trigger a D20 dice roll. Roll high = success, roll low = complications. '
+  +'Each party member then reacts in character.<br><br>'
+  +'<b>TIPS:</b><br>'
+  +'Click any <span class="narr-link">highlighted word</span> to ask the GM about it.<br>'
+  +'[S] RECAP = full dialogue history<br>'
+  +'[W] LORE = world encyclopedia (unlocks as you explore)<br>'
+  +'[M] MAP = Aethelgard city map<br>'
+  +'[T] TRACE = see the AI reasoning chain';
+
+function unlockDie(){
+  const btn = document.getElementById('dieBtn');
+  if(btn) btn.classList.remove('locked');
+}
+
+function showDieIntroPopup(){
+  let popup = document.getElementById('dieIntroPopup');
+  if(popup) return;
+  popup = document.createElement('div');
+  popup.id = 'dieIntroPopup';
+  popup.className = 'die-intro-popup';
+  popup.innerHTML = '<div class="dip-title">[ WHAT IS A DICE ROLL? ]</div>'
+    +'<div class="dip-body">'
+    +'When you attempt something risky, the GM calls for a <b>D20 check</b> - a 20-sided die rolled by the system.<br><br>'
+    +'<b>The number shown</b> is your raw roll (1-20).<br>'
+    +'<b>WARRIOR CHECK</b> means your Warrior\'s STR modifier is added to the roll.<br><br>'
+    +'<b>HIGH roll</b> = full success<br>'
+    +'<b>MID roll</b> = partial success with complications<br>'
+    +'<b>LOW roll</b> = failure - things get worse<br><br>'
+    +'The [!] DIE ROLL tab keeps a history of all rolls.'
+    +'</div>'
+    +'<button class="dip-close" onclick="document.getElementById(\'dieIntroPopup\').remove()">GOT IT &gt;</button>';
+  document.body.appendChild(popup);
+}
+
 async function sendAct(){
   const val = pInput.value.trim();
   if(!val) return;
   pInput.value = '';
+
+  if(val.toLowerCase() === 'help'){
+    narrText.innerHTML = HELP_TEXT + '<span class="cursor"></span>';
+    pushDialogue('GM', 'HELP: see UI for commands and tips.');
+    return;
+  }
+
   pushDialogue('You', val);
   narrText.innerHTML = '<em style="color:#8a6a3a;font-size:0.8em">\u00BB '+val+'</em><br><br><span style="color:#a09070">\u2026the agents confer\u2026</span><br><br><span class="cursor"></span>';
   try {
@@ -69,10 +194,21 @@ async function sendAct(){
     showGM();
     const setup = res.narration_setup || '';
     const outcome = res.narration_outcome || '';
+    const narrationText = (res.narration_setup || '') + ' ' + (res.narration_outcome || '');
+    scanForLore(narrationText);
     if(res.dice) {
+      dieHistory.unshift({actor:res.dice.actor||'', check:res.dice.check||'', roll:res.dice.roll, modifier:res.dice.modifier||0, total:res.dice.total, result:res.dice.result, consequence:res.dice.consequence||''});
+      if(!dieEverRolled){
+        dieEverRolled = true;
+        unlockDie();
+        setTimeout(showDieIntroPopup, 2200);
+      }
       appendNarration(setup || 'The Game Master calls for a die roll.');
       pushDialogue('GM', setup || '');
       setStage('die');
+      const diceActor = (res.dice.actor || currentRole).toUpperCase();
+      const diceCheck = (res.dice.check || 'ability check').toUpperCase();
+      dieLabel.textContent = diceActor + ' - ' + diceCheck + ' (D20 ROLL)';
       startDieAnimation(res.dice.roll, res.dice.total, res.dice.modifier, res.dice.result, res.dice.consequence, function(){
         if(outcome){
           appendNarration('<br><br>' + outcome);
@@ -81,7 +217,7 @@ async function sendAct(){
         if(res.followups && res.followups.length){
           setTimeout(function(){
             const agentTexts = res.followups.map(f=>{
-              const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===f.agent);
+              const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent.toLowerCase()===f.agent.toLowerCase());
               return '<span style="color:#c8922a">'+(mem?mem.name:f.agent)+':</span> '+highlightTerms(f.narration);
             }).join('<br>');
             appendNarration('<br><br>' + agentTexts);
@@ -99,9 +235,10 @@ async function sendAct(){
       if (outcome) pushDialogue('GM', outcome);
       if(res.followups && res.followups.length){
         setTimeout(function(){
-          const agentTexts = res.followups.map(f =>
-            '<span style="color:#c8922a">'+f.agent+':</span> '+f.narration
-          ).join('<br>');
+          const agentTexts = res.followups.map(f => {
+            const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent.toLowerCase()===f.agent.toLowerCase());
+            return '<span style="color:#c8922a">'+(mem?mem.name:f.agent)+':</span> '+highlightTerms(f.narration);
+          }).join('<br>');
           appendNarration('<br><br>' + agentTexts);
           res.followups.forEach(f => pushDialogue(f.agent, f.narration));
           setTimeout(function(){ setStage('agents'); }, 2000);
@@ -226,16 +363,18 @@ async function initGame(){
   await fetchState();
   renderParty();
   setRole(currentRole);
-  const loreEl = document.getElementById('loreBody');
-  if(loreEl) loreEl.innerHTML = '<b>AETHELGARD</b><br>A vast steampunk city powered by coal and aether-steam. Five vertical districts rise from The Undergrid to the Upper-Spire.<br><br><b>THE SUMP</b><br>The lowest inhabited district. Choking smog, rusted pipes, desperate workers scraping to survive beneath the weight of the city above.<br><br><b>CLOCKWORK PLAGUE</b><br>A mysterious corruption spreading through the city\'s machinery. Automatons malfunction, pressure cores overheat, and workers fall sick from toxic discharge.<br><br><b>PRESSURE CORE (SECTOR-04)</b><br>Giant steam regulators that power each district. The Sector-04 core has been deliberately sabotaged.<br><br><b>THE ENGINEERS</b><br>The ruling class of the Upper-Spire. They control the pressure systems — and may be behind the Plague to clear out the lower districts.<br><br><b>BRASS CYLINDER</b><br>A legendary override device. Whoever controls it can reset the master console and halt the Plague — or unleash it entirely.';
+  renderLore();
+  renderMap();
   try {
     const traceData = await apiGet('/trace');
     renderTrace(traceData);
   } catch {}
   const hasIntro = await checkIntro();
   if(!hasIntro && gameState){
-    const welcome = 'Welcome, '+playerName+'. '+(gameState.campaign || 'An adventure')+' begins. You stand at '+(gameState.location || 'the starting point')+'. '+(gameState.active_quest || 'Your quest awaits.');
-    narrText.innerHTML = welcome + '<span class="cursor"></span>';
+    const loc = gameState.location || 'the starting point';
+    const quest = gameState.active_quest || 'Your quest awaits';
+    const welcome = playerName+' steps into '+loc+'. The air is thick with smog and the distant groan of failing machinery. Somewhere beneath the city, the Clockwork Plague spreads. Your party is assembled. Mission: '+quest+'.';
+    narrText.innerHTML = highlightTerms(welcome) + '<span class="cursor"></span>';
     pushDialogue('GM', welcome);
   }
   loadingOverlay.classList.add('hidden');
@@ -246,7 +385,9 @@ async function initGame(){
       pInput.disabled = false;
       pInput.focus();
       if(gameState){
-        const welcome = 'Welcome, '+playerName+'. The '+(gameState.campaign || 'adventure')+' begins. Your party awaits your lead.';
+        const loc = gameState.location || 'the starting point';
+        const quest = gameState.active_quest || 'Your quest awaits';
+        const welcome = playerName+' steps into '+loc+'. The air is thick with smog and the distant groan of failing machinery. Somewhere beneath the city, the Clockwork Plague spreads. Your party is assembled. Mission: '+quest+'.';
         narrText.innerHTML = welcome + '<span class="cursor"></span>';
         pushDialogue('GM', welcome);
       }

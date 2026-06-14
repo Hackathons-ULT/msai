@@ -34,11 +34,11 @@ DEFAULT_STATE = GameState(
     location="The Sump",
     active_quest="Investigate the Clockwork Plague",
     party=[
-        PartyMember(agent="Warrior", name="Jax", health=20),
-        PartyMember(agent="Mage", name="Lyra", health=16, inventory=["Staff"]),
-        PartyMember(agent="Healer", name="Bram", health=18, inventory=["Medkit"]),
-        PartyMember(agent="Bard", name="Seren", health=16, inventory=["Lute"]),
-        PartyMember(agent="Rival", name="Kael", health=20, inventory=["Hidden Blade"]),
+        apply_class_stats(PartyMember(agent="Warrior", name="Jax", health=20)),
+        apply_class_stats(PartyMember(agent="Mage", name="Lyra", health=16, inventory=["Staff"])),
+        apply_class_stats(PartyMember(agent="Healer", name="Bram", health=18, inventory=["Medkit"])),
+        apply_class_stats(PartyMember(agent="Bard", name="Seren", health=16, inventory=["Lute"])),
+        apply_class_stats(PartyMember(agent="Rival", name="Kael", health=20, inventory=["Hidden Blade"])),
     ],
     player_character="Warrior",
 )

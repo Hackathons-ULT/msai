@@ -53,6 +53,10 @@ body{
 .class-card .cname{font-size:clamp(5px,0.6vw,8px);color:#d4aa78;display:block;}
 .class-card .cdesc{font-size:clamp(4px,0.5vw,7px);color:#9a7a48;display:block;margin-top:3px;}
 .class-card .clore{font-size:clamp(4px,0.45vw,6px);color:#7a6040;display:block;margin-top:5px;line-height:1.7;border-top:1px solid #5a4020;padding-top:4px;}
+.class-card.you .clore{color:#d4b070;border-top-color:#9a6a28;}
+.class-card.ally .clore{color:#88c8a0;border-top-color:#2a7a55;}
+.class-card.you .cdesc{color:#c8922a;}
+.class-card.ally .cdesc{color:#44bb80;}
 .class-card .c-badge{display:block;font-size:clamp(3px,0.4vw,6px);margin-top:3px;}
 .you-badge{color:#f0c060;}
 .ally-badge{color:#44dd88;}

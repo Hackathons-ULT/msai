@@ -14,7 +14,8 @@
       <div class="sb-btn active" data-view="agents" onclick="setStage('agents')"><span class="ico">[X]</span>PARTY</div>
       <div class="sb-btn" data-view="recap" onclick="setStage('recap')"><span class="ico">[S]</span>RECAP</div>
       <div class="sb-btn" data-view="lore" onclick="setStage('lore')"><span class="ico">[W]</span>LORE</div>
-      <div class="sb-btn" data-view="die" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
+      <div class="sb-btn" data-view="map" onclick="setStage('map')"><span class="ico">[M]</span>MAP</div>
+      <div class="sb-btn locked" data-view="die" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
       <div class="sb-btn" data-view="trace" onclick="setStage('trace')"><span class="ico">[T]</span>TRACE</div>
       <div class="sb-sep"></div>
       <div class="trace-box">
@@ -34,12 +35,13 @@
       <div class="agent-view" id="agentView"></div>
 
       <div class="die-view" id="dieView">
-        <div class="die-label" id="dieLabel">D20 - CHECK</div>
+        <div class="die-label" id="dieLabel">D20 ROLL HISTORY</div>
         <div class="die-face" id="dieFace">
           <div class="die-number" id="dieNum">20</div>
         </div>
         <div class="die-hint" id="dieHint"></div>
         <div class="die-result-strip" id="dieResult"></div>
+        <div class="die-history" id="dieHistory"></div>
       </div>
 
       <div class="trace-full" id="traceFull">
@@ -59,6 +61,11 @@
         <div class="cv-body" id="loreBody">
           The world awaits discovery.
         </div>
+      </div>
+
+      <div class="content-view" id="mapView">
+        <div class="cv-hd">[M] AETHELGARD MAP</div>
+        <div class="cv-body" id="mapBody"></div>
       </div>
     </div>
   </div>
@@ -89,7 +96,7 @@
       </div>
 
       <div class="input-row">
-        <input class="p-input" type="text" placeholder="> what do you do?" id="pInput">
+        <input class="p-input" type="text" placeholder="> what do you do? (type 'help' for tips)" id="pInput">
         <button class="act-btn" onclick="sendAct()">ACT &gt;</button>
       </div>
     </div>
