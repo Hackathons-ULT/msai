@@ -5,21 +5,21 @@ import random
 _CONSEQUENCE_HOOKS: dict[str, list[str]] = {
     "success": [
         "{actor} pulls it off cleanly.",
-        "A stroke of luck — {actor} succeeds.",
+        "A stroke of luck: {actor} succeeds.",
         "{actor}'s skill shines through.",
         "The dice favour {actor}.",
     ],
     "partial": [
         "{actor} manages, but barely.",
         "{actor} gets partway there.",
-        "Close — {actor} almost had it.",
+        "Close. {actor} almost had it.",
         "{actor} scrapes by with a partial result.",
     ],
     "failure": [
         "{actor} stumbles at the worst moment.",
         "The odds catch up to {actor}.",
         "Not {actor}'s finest moment.",
-        "Bad luck — {actor} fails.",
+        "Bad luck. {actor} fails.",
     ],
 }
 

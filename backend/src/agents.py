@@ -95,7 +95,7 @@ class MagePersona(BasePersona):
     def act_intro(self, state: dict) -> AgentAction:
         return AgentAction(
             agent=self.name,
-            narration=f"{self.name} whispers a detection cantrip — the air thrums with latent energy.",
+            narration=f"{self.name} whispers a detection cantrip; the air thrums with latent energy.",
         )
 
     def act_followup(self, state: dict, intent: str, outcome: str | None) -> AgentAction | None:
@@ -188,7 +188,7 @@ class BardPersona(BasePersona):
     def observe(self, action: str, lore_snippet: str) -> AgentPerspective:
         lowered = action.lower()
         if any(k in lowered for k in ("sing", "play", "perform", "inspire", "charm", "persuade")):
-            thought = "A moment for art and influence — the right word or note changes everything."
+            thought = "A moment for art and influence. The right word or note changes everything."
             suggestion = "Use performance to sway allies or unsettle opponents."
         else:
             thought = "Every scene has a rhythm. Find it and use it."
@@ -250,7 +250,7 @@ class RivalPersona(BasePersona):
     def act_followup(self, state: dict, intent: str, outcome: str | None) -> AgentAction | None:
         return AgentAction(
             agent=self.name,
-            narration=f"{self.name} mutters something under their breath — it might be advice, it might be a warning.",
+            narration=f"{self.name} mutters something under their breath. It might be advice, it might be a warning.",
         )
 
 

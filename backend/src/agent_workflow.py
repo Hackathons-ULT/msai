@@ -647,11 +647,11 @@ class LocalAgentWorkflow:
             "the party's position, and build tension. Incorporate the retrieved lore and the\n"
             "agents' perspectives naturally into the description.\n\n"
             "Part Two (Outcome): The narrative result of the action. Describe what actually happens.\n"
-            "Blend any dice result into the story — a success means the action lands well,\n"
+            "Blend any dice result into the story. A success means the action lands well,\n"
             "a failure means complications arise, a partial means mixed results.\n"
             "If there is no dice, describe a natural consequence of the action.\n\n"
             "Write in present tense, third person. Keep each paragraph to 2-4 sentences.\n"
-            "Do not label the parts — just write them separated by the delimiter."
+            "Do not label the parts. Just write them separated by the delimiter."
         )
 
         user_prompt = (
