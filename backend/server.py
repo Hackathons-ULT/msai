@@ -30,9 +30,9 @@ app.add_middleware(
 )
 
 DEFAULT_STATE = GameState(
-    campaign="The Lost Sigil",
-    location="Whispering Woods",
-    active_quest="Find the ancient artifact",
+    campaign="The Smog of Aethelgard",
+    location="The Sump",
+    active_quest="Investigate the Clockwork Plague",
     party=[
         PartyMember(agent="Warrior", name="Jax", health=20),
         PartyMember(agent="Mage", name="Lyra", health=16, inventory=["Staff"]),
@@ -60,6 +60,9 @@ class ResetRequest(BaseModel):
     ]
     world_flags: Dict[str, Union[bool, str]] = {}
     player_character: str = "Warrior"
+    campaign: str = "The Smog of Aethelgard"
+    location: str = "The Sump"
+    active_quest: str = "Investigate the Clockwork Plague"
 
 
 class TurnRequest(BaseModel):
