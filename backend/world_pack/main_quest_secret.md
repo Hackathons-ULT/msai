@@ -1,0 +1,1 @@
+GM ONLY: The true mastermind is Councilor Vex, a high-ranking Engineer who orchestrated the sabotage to consolidate power. He has a hidden vault beneath the Pressure Core containing evidence of his coup plot against the rest of the council. The party can expose him if they find the vault and survive.
