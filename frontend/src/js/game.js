@@ -291,6 +291,5 @@ const _sfx = (function(){
   };
 })();
 
-document.getElementById('pInput').addEventListener('keydown', () => _sfx.click());
 const _origSendAct = sendAct;
 window.sendAct = function(){ _sfx.send(); _origSendAct(); };
