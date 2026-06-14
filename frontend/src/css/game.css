@@ -125,7 +125,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .warrior-acc{background:#c84422;}
 .mage-acc{background:#6622cc;}
 .rogue-acc{background:#226644;}
-.rival-acc{background:#226644;}
 .healer-acc{background:#22aa88;}
 .bard-acc{background:#aa3080;}
 
@@ -152,7 +151,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .dialogue{position:relative;z-index:2;margin:clamp(5px,0.5vw,10px) clamp(6px,0.6vw,12px) 0 0;background:#1e1408;border:2px solid #5a3e1a;border-radius:2px;padding:clamp(6px,0.7vw,12px) clamp(8px,0.9vw,16px);flex:1;overflow:hidden;display:flex;flex-direction:column;}
 .speaker{font-size:clamp(6px,0.6vw,10px);color:#c8922a;margin-bottom:clamp(3px,0.3vw,6px);letter-spacing:1px;flex-shrink:0;}
 .speaker.mage-spk{color:#9966ff;}
-.speaker.rogue-spk{color:#44cc88;}
 .speaker.rival-spk{color:#44cc88;}
 .speaker.healer-spk{color:#44ddbb;}
 .speaker.bard-spk{color:#dd66bb;}
