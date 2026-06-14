@@ -89,6 +89,10 @@ body{
 .loading-text{font-size:clamp(4px,0.5vw,7px);color:#8a7050;text-align:center;padding:8px;}
 .error-text{font-size:clamp(4px,0.5vw,7px);color:#cc4444;text-align:center;padding:8px;}
 
+.htp-grid{display:flex;flex-direction:column;gap:8px;}
+.htp-item{display:flex;gap:10px;align-items:flex-start;font-size:clamp(5px,0.55vw,8px);color:#c8b090;line-height:1.8;}
+.htp-key{flex-shrink:0;background:#3a2a10;border:1px solid #8a6030;color:#c8922a;padding:2px 6px;border-radius:1px;font-size:clamp(5px,0.5vw,7px);min-width:44px;text-align:center;}
+
 .start-btn{
   display:block;width:100%;margin-top:8px;
   background:#6a4e28;border:2px solid #c8922a;border-radius:2px;

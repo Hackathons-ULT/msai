@@ -73,9 +73,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .agent-lbl{
   font-size:clamp(8px,0.8vw,13px);color:#5a3e1a;text-align:center;
   background:#d4bc82;border:2px solid #8a6030;border-radius:1px;padding:clamp(5px,0.5vw,8px) clamp(7px,0.7vw,12px);
-  white-space:nowrap;max-width:clamp(90px,10vw,160px);overflow:hidden;text-overflow:ellipsis;
+  width:clamp(110px,13vw,200px);word-break:break-word;
 }
-.agent-lbl span{display:block;font-size:clamp(7px,0.6vw,10px);color:#8a6a3a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.agent-lbl span{display:block;font-size:clamp(7px,0.6vw,10px);color:#8a6a3a;margin-top:2px;word-break:break-word;}
 .agent-card.lit .agent-lbl{border-color:#c8922a;color:#2a1a06;background:#e8c878;}
 .agent-card.lit .sprite-container svg{filter:drop-shadow(0 0 8px rgba(180,120,20,0.5));}
 

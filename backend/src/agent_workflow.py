@@ -677,13 +677,13 @@ class LocalAgentWorkflow:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.5,
-            max_tokens=600,
+            max_tokens=1200,
         )
 
         if not result.used or not result.text:
             return None
 
-        text = self._shorten_text(result.text.strip(), 1200)
+        text = result.text.strip()
         delimiter = "---PART TWO---"
         if delimiter in text:
             parts = text.split(delimiter, 1)
