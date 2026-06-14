@@ -61,7 +61,7 @@ class LocalLLMClient:
         self,
         messages: list[dict[str, str]],
         temperature: float = 0.2,
-        max_tokens: int = 300,
+        max_tokens: int = 800,
         json_mode: bool = False,
     ) -> LLMResult:
         if not self.available:

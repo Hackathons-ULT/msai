@@ -677,7 +677,7 @@ class LocalAgentWorkflow:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.5,
-            max_tokens=1200,
+            max_tokens=2000,
         )
 
         if not result.used or not result.text:
@@ -773,7 +773,7 @@ class LocalAgentWorkflow:
                         {"role": "user", "content": context},
                     ],
                     temperature=0.4,
-                    max_tokens=350,
+                    max_tokens=600,
                 )
                 if result.used and result.text:
                     follow_narration = result.text.strip()
