@@ -41,7 +41,7 @@ async function sendAct(){
   if(!val) return;
   pInput.value = '';
   pushDialogue('You', val);
-  narrText.innerHTML = '<em style="color:#8a6a3a;font-size:0.8em">\u00BB '+val+'</em><br><br><span style="color:#a09070">\u2026the agents confer\u2026</span><span class="cursor"></span>';
+  narrText.innerHTML = '<em style="color:#8a6a3a;font-size:0.8em">\u00BB '+val+'</em><br><br><span style="color:#a09070">\u2026the agents confer\u2026</span><br><br><span class="cursor"></span>';
   try {
     const res = await apiPost('/turn', {action: val, session_id: "default"});
     gameState = res.state;
@@ -234,7 +234,7 @@ async function initGame(){
 
 initGame();
 
-// ── Panel resizer ──────────────────────────────────────────────
+// -- Panel resizer --
 (function(){
   const resizer = document.getElementById('panelResizer');
   const shell = document.querySelector('.shell');
@@ -268,7 +268,7 @@ initGame();
   });
 })();
 
-// ── Retro sounds (Web Audio API) ──────────────────────────────
+// -- Retro sounds (Web Audio API) --
 const _sfx = (function(){
   let ctx = null;
   function getCtx(){ if(!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)(); return ctx; }

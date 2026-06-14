@@ -33,14 +33,9 @@ function handleClassClick(cls){
   if(myClass === cls){
     myClass = null;
     allyClasses = [];
-  } else if(!myClass){
-    myClass = cls;
-  } else if(allyClasses.includes(cls)){
-    allyClasses = allyClasses.filter(c => c !== cls);
-  } else if(allyClasses.length < MAX_PARTY - 1){
-    allyClasses.push(cls);
   } else {
-    return;
+    myClass = cls;
+    allyClasses = availableClasses.filter(c => c !== cls);
   }
   renderClasses();
   validateForm();
@@ -91,6 +86,7 @@ async function loadExistingCampaign(){
       validateForm();
     };
     list.appendChild(item);
+    item.click();
   } catch {
     list.innerHTML = '<div class="error-text">\u26A0 Backend unreachable</div>';
   }
@@ -122,9 +118,10 @@ document.getElementById('startBtn').onclick = async () => {
   const location = selectedCampaign?.location || 'Whispering Woods';
   const quest = selectedCampaign?.active_quest || 'A new adventure';
 
-  const defaultNames = {Warrior:'Jax', Mage:'Lyra', Healer:'Bram', Bard:'Seren'};
-  const defaultInv = {Warrior:[], Mage:['Staff'], Healer:['Medkit'], Bard:['Lute']};
-  const allSelected = [myClass, ...allyClasses];
+  const defaultNames = {Warrior:'Jax', Mage:'Lyra', Healer:'Bram', Bard:'Seren', Rival:'Kael'};
+  const defaultInv = {Warrior:[], Mage:['Staff'], Healer:['Medkit'], Bard:['Lute'], Rival:['Hidden Blade']};
+  const allSelected = [myClass, ...allyClasses.filter(c => c !== myClass)];
+  if(!allSelected.includes('Rival')) allSelected.push('Rival');
   const party = allSelected.map(agent => ({
     agent,
     name: agent === myClass ? name : (defaultNames[agent] || agent),

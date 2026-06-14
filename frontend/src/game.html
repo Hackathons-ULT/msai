@@ -1,7 +1,7 @@
 <link rel="stylesheet" href="css/game.css">
 
 <div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-spinner">⚔</div>
+  <div class="loading-spinner">[X]</div>
   <div class="loading-text">LOADING...</div>
 </div>
 <div class="toast" id="toast"></div>
@@ -11,14 +11,14 @@
   <div class="top">
     <div class="sidebar">
       <div class="sb-title">- MENU -</div>
-      <div class="sb-btn active" onclick="setStage('agents')"><span class="ico">⚔</span>PARTY</div>
+      <div class="sb-btn active" onclick="setStage('agents')"><span class="ico">[X]</span>PARTY</div>
       <div class="sb-btn" onclick="setStage('recap')"><span class="ico">[S]</span>RECAP</div>
       <div class="sb-btn" onclick="setStage('lore')"><span class="ico">[W]</span>LORE</div>
       <div class="sb-btn" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
       <div class="sb-btn" onclick="setStage('trace')"><span class="ico">[T]</span>TRACE</div>
       <div class="sb-sep"></div>
       <div class="trace-box">
-        <div class="trace-hd">▸ LIVE TRACE</div>
+        <div class="trace-hd">&gt; LIVE TRACE</div>
         <div class="trace-feed" id="traceFeed"></div>
       </div>
       <div class="sb-sep"></div>
@@ -43,7 +43,7 @@
       </div>
 
       <div class="trace-full" id="traceFull">
-        <div class="trace-full-hd" id="traceFullHd">◈ AGENT REASONING TRACE</div>
+        <div class="trace-full-hd" id="traceFullHd">[*] AGENT REASONING TRACE</div>
         <div class="trace-full-body" id="traceFullBody"></div>
       </div>
 
@@ -90,7 +90,7 @@
 
       <div class="input-row">
         <input class="p-input" type="text" placeholder="> what do you do?" id="pInput">
-        <button class="act-btn" onclick="sendAct()">ACT ▸</button>
+        <button class="act-btn" onclick="sendAct()">ACT &gt;</button>
       </div>
     </div>
 
