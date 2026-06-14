@@ -233,3 +233,64 @@ async function initGame(){
 }
 
 initGame();
+
+// ── Panel resizer ──────────────────────────────────────────────
+(function(){
+  const resizer = document.getElementById('panelResizer');
+  const shell = document.querySelector('.shell');
+  const top = document.querySelector('.top');
+  const textbox = document.getElementById('textbox');
+  if(!resizer || !top || !textbox) return;
+  let dragging = false, startY = 0, startTopH = 0;
+  resizer.addEventListener('mousedown', e => {
+    dragging = true;
+    startY = e.clientY;
+    startTopH = top.getBoundingClientRect().height;
+    resizer.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ns-resize';
+  });
+  document.addEventListener('mousemove', e => {
+    if(!dragging) return;
+    const totalH = shell.getBoundingClientRect().height;
+    const delta = e.clientY - startY;
+    const newTopH = Math.min(Math.max(startTopH + delta, totalH * 0.2), totalH * 0.8);
+    const pct = (newTopH / totalH * 100).toFixed(1);
+    top.style.flex = '0 0 ' + pct + '%';
+    textbox.style.flex = '0 0 ' + (100 - pct) + '%';
+  });
+  document.addEventListener('mouseup', () => {
+    if(!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+  });
+})();
+
+// ── Retro sounds (Web Audio API) ──────────────────────────────
+const _sfx = (function(){
+  let ctx = null;
+  function getCtx(){ if(!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)(); return ctx; }
+  function tone(freq, dur, type='square', vol=0.08){
+    try {
+      const c = getCtx(), g = c.createGain(), o = c.createOscillator();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(); o.stop(c.currentTime + dur);
+    } catch {}
+  }
+  return {
+    click(){ tone(440, 0.05); },
+    send(){ tone(520, 0.06); setTimeout(() => tone(660, 0.08), 60); },
+    dice(){ [220,180,260,200,300].forEach((f,i) => setTimeout(() => tone(f, 0.04, 'sawtooth'), i*40)); },
+    success(){ tone(523, 0.1); setTimeout(() => tone(659, 0.1), 100); setTimeout(() => tone(784, 0.18), 200); },
+    fail(){ tone(300, 0.1); setTimeout(() => tone(200, 0.15), 100); }
+  };
+})();
+
+document.getElementById('pInput').addEventListener('keydown', () => _sfx.click());
+const _origSendAct = sendAct;
+window.sendAct = function(){ _sfx.send(); _origSendAct(); };

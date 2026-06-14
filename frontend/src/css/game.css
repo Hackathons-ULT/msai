@@ -7,6 +7,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
   background:#2b1f0e;font-family:'Press Start 2P',monospace;position:relative;overflow:hidden;
   border:2px solid #7a5c2e;
 }
+.panel-resizer{
+  flex-shrink:0;height:6px;background:#5a3e1a;cursor:ns-resize;
+  border-top:1px solid #8a6030;border-bottom:1px solid #8a6030;
+  transition:background 0.15s;
+}
+.panel-resizer:hover,.panel-resizer.dragging{background:#c8922a;}
 
 .top{flex:0 0 60%;display:flex;border-bottom:3px solid #7a5c2e;position:relative;min-height:0;}
 
@@ -63,7 +69,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .agent-view{position:relative;z-index:1;display:flex;gap:clamp(12px,1.5vw,28px);align-items:flex-end;padding:clamp(8px,1vw,20px) clamp(12px,1.5vw,28px);width:100%;justify-content:center;flex-wrap:wrap;}
 .agent-card{display:flex;flex-direction:column;align-items:center;gap:clamp(4px,0.4vw,8px);flex-shrink:0;}
 .agent-card .sprite-container{line-height:0;}
-.agent-card .sprite-container svg,.agent-card .sprite-container img{width:clamp(80px,12vw,160px);height:clamp(100px,15vw,200px);image-rendering:pixelated;}
+.agent-card .sprite-container svg,.agent-card .sprite-container img{width:clamp(70px,10vw,130px);height:clamp(90px,13vw,170px);image-rendering:pixelated;}
 .agent-lbl{
   font-size:clamp(8px,0.8vw,13px);color:#5a3e1a;text-align:center;
   background:#d4bc82;border:2px solid #8a6030;border-radius:1px;padding:clamp(5px,0.5vw,8px) clamp(7px,0.7vw,12px);
@@ -132,7 +138,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .portrait-side{
   display:flex;flex-direction:column;flex-shrink:0;
   padding:clamp(5px,0.5vw,10px) 0;
-  min-width:10%;max-width:25%;
+  min-width:8%;max-width:18%;
 }
 .portrait{
   width:100%;flex:1;display:flex;flex-direction:column;overflow:hidden;
@@ -200,6 +206,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .stat-table tr+tr td{border-top:1px solid #b89860;}
 .st-name{color:#5a3e1a;text-align:left;}
 .st-val{color:#2a1a06;text-align:right;font-weight:bold;}
+.st-row{position:relative;cursor:help;}
+.st-row:hover td{background:rgba(180,120,20,0.15);}
+.st-row:hover::after{
+  content:attr(data-tip);
+  position:absolute;left:50%;bottom:110%;transform:translateX(-50%);
+  background:#2a1a06;color:#e8c878;font-size:clamp(5px,0.5vw,8px);
+  font-family:'Press Start 2P',monospace;padding:4px 7px;border:1px solid #8a6030;
+  white-space:nowrap;z-index:999;pointer-events:none;border-radius:1px;
+}
 .agent-card.lit .stat-table{border-color:#c8922a;background:#e8c878;}
 .agent-card.lit .stat-table tr+tr td{border-top-color:#c8a868;}
 .agent-card.lit .st-name{color:#3a2a0a;}
