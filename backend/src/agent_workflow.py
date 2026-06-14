@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from .game_manager import GameManager
+from .retrieval import FoundryIQLoreRetriever, build_lore_retriever
 from .tools import LocalLoreRetriever, RetrievedLore, RPGTools
 
 
@@ -46,12 +47,12 @@ class LocalAgentWorkflow:
     def __init__(
         self,
         gm: GameManager,
-        lore_retriever: LocalLoreRetriever | None = None,
+        lore_retriever: FoundryIQLoreRetriever | LocalLoreRetriever | None = None,
         tools: RPGTools | None = None,
     ) -> None:
         self.gm = gm
         self.tools = tools or RPGTools(gm)
-        self.lore_retriever = lore_retriever or LocalLoreRetriever()
+        self.lore_retriever = lore_retriever or build_lore_retriever()
 
     def reset_game_manager(self, gm: GameManager) -> None:
         self.gm = gm
