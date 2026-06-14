@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from .agents import AgentAction, PERSONAS
 from .game_manager import GameManager
 from .tools import LocalLoreRetriever, RetrievedLore, RPGTools
 
@@ -25,6 +26,9 @@ class TurnPlan:
 @dataclass(slots=True)
 class TurnResult:
     narration: str
+    narration_setup: str
+    narration_outcome: str
+    followups: list[dict]
     choices: list[str]
     state: dict
     trace: list[dict]
@@ -52,6 +56,7 @@ class LocalAgentWorkflow:
         self.gm = gm
         self.tools = tools or RPGTools(gm)
         self.lore_retriever = lore_retriever or LocalLoreRetriever()
+        self._pending_intro: str | None = None
 
     def reset_game_manager(self, gm: GameManager) -> None:
         self.gm = gm
@@ -73,6 +78,9 @@ class LocalAgentWorkflow:
             )
             return TurnResult(
                 narration="The Game Master waits for a clearer action.",
+                narration_setup="The Game Master waits for a clearer action.",
+                narration_outcome="",
+                followups=[],
                 choices=["Describe what your character does."],
                 state=self.gm.get_state(),
                 trace=self.gm.get_trace(),
@@ -140,12 +148,24 @@ class LocalAgentWorkflow:
                 },
             )
 
-        narration = self._compose_narration(action, plan, lore, specialist_notes, dice_result, warnings)
-        self.gm.update(narration=narration)
+        narration_setup, narration_outcome = self._compose_narration(
+            action, plan, lore, specialist_notes, dice_result, warnings
+        )
+        full_narration = narration_setup + (" " + narration_outcome if narration_outcome else "")
+        self.gm.update(narration=full_narration)
+
+        followups = self._generate_followups(plan, dice_result)
+        followup_text = ""
+        if followups:
+            followup_text = " " + " ".join(f["narration"] for f in followups)
+            self.gm.update(narration=full_narration + followup_text)
 
         choices = self._build_choices(plan.intent, dice_result)
         return TurnResult(
-            narration=narration,
+            narration=full_narration + followup_text,
+            narration_setup=narration_setup,
+            narration_outcome=narration_outcome,
+            followups=followups,
             choices=choices,
             state=self.gm.get_state(),
             trace=self.gm.get_trace(),
@@ -334,24 +354,23 @@ class LocalAgentWorkflow:
         specialist_notes: list[str],
         dice_result: dict | None,
         warnings: list[str],
-    ) -> str:
+    ) -> tuple[str, str]:
         first_citation = lore.citations[0] if lore.citations else "local world pack"
         note_bits = " | ".join(f"{agent}: {note}" for agent, note in zip(plan.agents, specialist_notes))
-        dice_bits = ""
-        if dice_result:
-            dice_bits = f" The check landed as {dice_result['result']} ({dice_result['total']} vs DC {dice_result['difficulty']})."
-            if dice_result.get("consequence"):
-                dice_bits += f" {dice_result['consequence']}"
-        warning_bits = ""
-        if warnings:
-            warning_bits = " " + " ".join(warnings)
-        return (
+        setup = (
             f"The party considers: {action}. "
             f"Grounded by {first_citation}. "
             f"{note_bits}."
-            f"{dice_bits}"
-            f"{warning_bits}"
-        ).strip()
+        )
+        outcome = ""
+        if dice_result:
+            outcome = f"The check landed as {dice_result['result']} ({dice_result['total']} vs DC {dice_result['difficulty']})."
+            if dice_result.get("consequence"):
+                outcome += f" {dice_result['consequence']}"
+            setup += " The Game Master calls for a die roll."
+        if warnings:
+            outcome = outcome + " " + " ".join(warnings) if outcome else " ".join(warnings)
+        return setup.strip(), outcome.strip()
 
     def _build_choices(self, intent: str, dice_result: dict | None) -> list[str]:
         if dice_result and dice_result.get("result") == "failure":
@@ -377,6 +396,51 @@ class LocalAgentWorkflow:
             "Ask for more detail.",
             "Change strategy.",
         ]
+
+    def run_intro(self, session_id: str = "default") -> str:
+        state = self.gm.get_state()
+        party = state.get("party", [])
+        intro_parts = [f"The party arrives at {state.get('location', 'their destination')}."]
+        for member in party:
+            persona = PERSONAS.get(member["agent"])
+            if persona:
+                action = persona.act_intro(state)
+                intro_parts.append(action.narration)
+                if action.state_patch:
+                    self.tools.apply_patch(action.state_patch)
+                self.gm.record_trace("agent_intro", {"agent": member["agent"], "action": action.narration})
+        intro_parts.append("The Game Master looks to you. What do you do?")
+        intro_text = " ".join(intro_parts)
+        self.gm.update(narration=intro_text)
+        self._pending_intro = intro_text
+        return intro_text
+
+    def _generate_followups(self, plan: TurnPlan, dice_result: dict | None) -> list[dict]:
+        state = self.gm.get_state()
+        followups: list[AgentAction] = []
+        processed: set[str] = set()
+        outcome = (dice_result or {}).get("result")
+        for member in state.get("party", []):
+            name = member["agent"]
+            persona = PERSONAS.get(name)
+            if not persona or name in processed:
+                continue
+            action = persona.act_followup(state, plan.intent, outcome)
+            if action:
+                processed.add(name)
+                followups.append(action)
+                if action.state_patch:
+                    self.tools.apply_patch(action.state_patch)
+                self.gm.record_trace("agent_followup", {"agent": name, "action": action.narration})
+        return [
+            {"agent": f.agent, "narration": f.narration, "dice": f.dice}
+            for f in followups
+        ]
+
+    def pop_intro(self) -> str | None:
+        text = self._pending_intro
+        self._pending_intro = None
+        return text
 
 
 def build_workflow(gm: GameManager) -> LocalAgentWorkflow:

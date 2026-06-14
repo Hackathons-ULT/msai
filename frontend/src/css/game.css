@@ -114,6 +114,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .cv-body{font-size:clamp(6px,0.55vw,9px);color:#4a3010;line-height:2;flex:1;overflow-y:auto;}
 .cv-body::-webkit-scrollbar{width:4px;}
 .cv-body::-webkit-scrollbar-thumb{background:#8a6030;border-radius:1px;}
+.dl-entry{font-size:clamp(5px,0.5vw,9px);line-height:1.8;padding:clamp(1px,0.15vw,3px) clamp(2px,0.2vw,4px);border-radius:1px;}
+.dl-speaker{color:#7a4a08;font-weight:bold;margin-right:4px;}
+.dl-player{color:#5a3e1a;background:rgba(160,120,40,0.1);}
+.dl-gm{color:#3a2810;}
 
 .textbox{flex:0 0 50%;position:relative;background:#c8a060;border-top:3px solid #7a5c2e;display:flex;flex-direction:row;overflow:hidden;min-height:0;gap:clamp(4px,0.5vw,10px);}
 .tb-bg{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 10px,rgba(100,60,10,0.08) 10px,rgba(100,60,10,0.08) 11px);z-index:0;}

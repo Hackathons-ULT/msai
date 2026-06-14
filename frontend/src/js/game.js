@@ -4,52 +4,95 @@ let playerName = '';
 let playerClass = '';
 let dieRolling = false;
 const dieMax = 20;
+let lastDieTotal = 20;
+let lastDieResultText = '';
+let lastDieColor = '';
+let dialogueHistory = [];
+
+function pushDialogue(speaker, text){
+  dialogueHistory.push({speaker, text});
+  renderRecap();
+}
+
+function renderRecap(){
+  if(!gameState) return;
+  const members = gameState.party || [];
+  let totalHp = 0, totalMax = 0;
+  members.forEach(m => { totalHp += m.health; totalMax += m.max_health; });
+  const meta = '\uD83D\uDCCD '+(gameState.location || '?')+' \u2014 '+(gameState.active_quest || '?')+'<br>\uD83C\uDFC1 '+(gameState.campaign || '?')+'  |  \u2694 HP '+totalHp+'/'+totalMax;
+  const lines = dialogueHistory.map(e => {
+    const cls = e.speaker === 'You' ? 'dl-player' : 'dl-gm';
+    return '<div class="dl-entry '+cls+'"><span class="dl-speaker">['+e.speaker+']:</span> '+e.text+'</div>';
+  }).join('');
+  recapBody.innerHTML = meta + '<br><hr style="border-color:#8a6030;margin:6px 0">' + lines;
+  recapBody.scrollTop = recapBody.scrollHeight;
+}
 
 async function sendAct(){
   const val = pInput.value.trim();
   if(!val) return;
   pInput.value = '';
+  pushDialogue('You', val);
   narrText.innerHTML = '<em style="color:#8a6a3a;font-size:0.8em">\u00BB '+val+'</em><br><br><span style="color:#a09070">\u2026the agents confer\u2026</span><span class="cursor"></span>';
   try {
     const res = await apiPost('/turn', {action: val, session_id: "default"});
     gameState = res.state;
     renderParty();
     if(res.trace) renderTrace(res.trace);
-    narrText.innerHTML = (res.narration || 'The agents responded.') + '<span class="cursor"></span>';
     showGM();
+    if(res.dice) {
+      narrText.innerHTML = (res.narration_setup || 'The Game Master calls for a die roll.') + '<span class="cursor"></span>';
+      setStage('die');
+      startDieAnimation(res.dice.total, res.dice.result, res.dice.consequence, function(){
+        if(res.narration_outcome){
+          narrText.innerHTML = res.narration_outcome + '<span class="cursor"></span>';
+          pushDialogue('GM', res.narration_outcome);
+        }
+        if(res.followups && res.followups.length){
+          const agentTexts = res.followups.map(f =>
+            '<span style="color:#c8922a">'+f.agent+':</span> '+f.narration
+          ).join('<br>');
+          narrText.innerHTML = agentTexts + '<span class="cursor"></span>';
+          res.followups.forEach(f => pushDialogue(f.agent, f.narration));
+          setTimeout(function(){ setStage('agents'); }, 2000);
+        } else {
+          setStage('agents');
+        }
+      });
+    } else {
+      const narration = res.narration || 'The agents responded.';
+      narrText.innerHTML = narration + '<span class="cursor"></span>';
+      pushDialogue('GM', narration);
+      if(res.followups && res.followups.length){
+        setTimeout(function(){
+          const agentTexts = res.followups.map(f =>
+            '<span style="color:#c8922a">'+f.agent+':</span> '+f.narration
+          ).join('<br>');
+          narrText.innerHTML = agentTexts + '<span class="cursor"></span>';
+          res.followups.forEach(f => pushDialogue(f.agent, f.narration));
+          setTimeout(function(){ setStage('agents'); }, 2000);
+        }, 800);
+      } else {
+        setTimeout(function(){ setStage('agents'); }, 800);
+      }
+    }
   } catch(e){
     narrText.innerHTML = '<span style="color:#cc4444">\u26A0 Error: '+e.message+'</span><span class="cursor"></span>';
     showToast('Action failed: '+e.message);
   }
 }
 
-async function rollDie(){
+function startDieAnimation(finalTotal, finalResult, finalConsequence, onComplete){
   if(dieRolling) return;
   dieRolling = true;
   dieHint.textContent = '\u27F3 rolling...';
   dieResult.style.display = 'none';
-  const member = gameState && gameState.party && gameState.party.find(m => m.agent.toLowerCase() === currentRole);
-  const actor = member ? member.agent : currentRole;
-  const check = 'Heroism';
-  const difficulty = 12;
-  let finalTotal = 0, finalRoll = 0, finalResult = '', finalConsequence = '';
-  try {
-    const res = await apiPost('/roll', {actor, check, difficulty, modifier: 0});
-    finalRoll = res.roll || 1;
-    finalTotal = res.total || finalRoll;
-    finalResult = res.result || (finalTotal >= difficulty ? 'success' : 'fail');
-    finalConsequence = res.consequence || '';
-  } catch(e){
-    finalRoll = Math.floor(Math.random() * dieMax) + 1;
-    finalTotal = finalRoll;
-    finalResult = finalTotal >= difficulty ? 'success' : 'fail';
-    finalConsequence = 'Offline roll \u2014 backend unreachable.';
-    showToast('Backend unreachable, using local roll: '+e.message);
-  }
   const max = dieMax;
   let ticks = 0;
   const totalTicks = 28;
   const numEl = dieNum;
+  const outcome = finalResult === 'success';
+  const outcomeLabel = outcome ? 'SUCCESS' : 'FAIL';
   function getDelay(tick){
     if(tick<8) return 40;
     if(tick<16) return 60;
@@ -65,10 +108,11 @@ async function rollDie(){
     } else {
       numEl.textContent = finalTotal;
       dieHint.style.display = 'none';
-      const outcome = finalResult === 'success';
-      const outcomeLabel = outcome ? 'SUCCESS' : 'FAIL';
-      dieResult.textContent = 'ROLLED '+finalTotal+' \u2014 '+outcomeLabel + (finalConsequence ? ' \u2014 '+finalConsequence : '');
-      dieResult.style.color = outcome ? '#2a5a22' : '#7a2222';
+      lastDieTotal = finalTotal;
+      lastDieResultText = 'ROLLED '+finalTotal+' \u2014 '+outcomeLabel + (finalConsequence ? ' \u2014 '+finalConsequence : '');
+      lastDieColor = outcome ? '#2a5a22' : '#7a2222';
+      dieResult.textContent = lastDieResultText;
+      dieResult.style.color = lastDieColor;
       dieResult.style.display = 'block';
       dieRolling = false;
       const line = document.createElement('div');
@@ -77,6 +121,7 @@ async function rollDie(){
       traceFeed.appendChild(line);
       while(traceFeed.children.length > 8) traceFeed.removeChild(traceFeed.firstChild);
       fetchTrace();
+      setTimeout(function(){ if(onComplete) onComplete(); }, 1500);
     }
   }
   tick();
@@ -112,6 +157,32 @@ async function fetchState(){
   }
 }
 
+async function checkIntro(){
+  try {
+    const r = await apiGet('/intro');
+    if(r.pending && r.narration){
+      showGM();
+      narrText.innerHTML = r.narration + '<span class="cursor"></span>';
+      const parts = r.narration.split('. ');
+      parts.forEach(p => {
+        const trimmed = p.trim();
+        if(!trimmed) return;
+        const colonIdx = trimmed.indexOf(':');
+        if(colonIdx > 0 && colonIdx < 25){
+          const speaker = trimmed.substring(0, colonIdx);
+          const text = trimmed.substring(colonIdx + 1).replace(/\.$/, '');
+          if(speaker && text) pushDialogue(speaker.trim(), text.trim());
+        } else {
+          pushDialogue('GM', trimmed.replace(/\.$/, ''));
+        }
+      });
+      pInput.disabled = true;
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
 async function initGame(){
   playerName = localStorage.getItem('opencode_playerName') || 'Adventurer';
   playerClass = localStorage.getItem('opencode_playerClass') || 'Warrior';
@@ -123,12 +194,26 @@ async function initGame(){
     const traceData = await apiGet('/trace');
     renderTrace(traceData);
   } catch {}
-  if(gameState){
-    narrText.innerHTML = 'Welcome, '+playerName+'. The '+(gameState.campaign || 'adventure')+' begins. You stand at '+(gameState.location || 'the starting point')+'. '+(gameState.active_quest || 'Your quest awaits.')+'<span class="cursor"></span>';
+  const hasIntro = await checkIntro();
+  if(!hasIntro && gameState){
+    const welcome = 'Welcome, '+playerName+'. The '+(gameState.campaign || 'adventure')+' begins. You stand at '+(gameState.location || 'the starting point')+'. '+(gameState.active_quest || 'Your quest awaits.');
+    narrText.innerHTML = welcome + '<span class="cursor"></span>';
+    pushDialogue('GM', welcome);
   }
   loadingOverlay.classList.add('hidden');
   setTimeout(() => { loadingOverlay.style.display = 'none'; }, 500);
   pInput.addEventListener('keydown', e => { if(e.key === 'Enter') sendAct(); });
+  if(hasIntro){
+    setTimeout(function(){
+      pInput.disabled = false;
+      pInput.focus();
+      if(gameState){
+        const welcome = 'Welcome, '+playerName+'. The '+(gameState.campaign || 'adventure')+' begins. Your party awaits your lead.';
+        narrText.innerHTML = welcome + '<span class="cursor"></span>';
+        pushDialogue('GM', welcome);
+      }
+    }, 2500);
+  }
 }
 
 initGame();

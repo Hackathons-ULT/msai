@@ -53,13 +53,6 @@ class ResetRequest(BaseModel):
     world_flags: dict[str, bool | str] = {}
 
 
-class RollRequest(BaseModel):
-    actor: str
-    check: str
-    difficulty: int
-    modifier: int = 0
-
-
 class TurnRequest(BaseModel):
     action: str
     session_id: str = "default"
@@ -93,6 +86,9 @@ def turn(body: TurnRequest):
     result = workflow.run_turn(body.action, body.session_id)
     return {
         "narration": result.narration,
+        "narration_setup": result.narration_setup,
+        "narration_outcome": result.narration_outcome,
+        "followups": result.followups,
         "choices": result.choices,
         "state": result.state,
         "trace": result.trace,
@@ -111,12 +107,6 @@ def action(body: TurnRequest):
 @app.get("/state")
 def get_state():
     return gm.get_state()
-
-
-@app.post("/roll")
-def roll(body: RollRequest):
-    result = gm.roll_dice(body.actor, body.check, body.difficulty, body.modifier)
-    return result
 
 
 @app.post("/update")
@@ -144,6 +134,14 @@ def clear_trace():
     return {"status": "ok"}
 
 
+@app.get("/intro")
+def get_intro():
+    text = workflow.pop_intro()
+    if text:
+        return {"narration": text, "pending": True}
+    return {"narration": "", "pending": False}
+
+
 @app.post("/reset")
 def reset_game(body: ResetRequest):
     global gm, workflow
@@ -158,4 +156,5 @@ def reset_game(body: ResetRequest):
         )
     )
     workflow = LocalAgentWorkflow(gm, lore_retriever=LocalLoreRetriever(BASE_DIR / "world_pack"))
-    return {"status": "ok", "state": gm.get_state()}
+    workflow.run_intro()
+    return {"status": "ok", "state": gm.get_state(), "intro": workflow.pop_intro()}
