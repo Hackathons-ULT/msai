@@ -8,11 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from src.agent_workflow import LocalAgentWorkflow
-from src.class_stats import apply_class_stats
-from src.game_manager import GameManager
-from src.state import GameState, PartyMember
-from src.retrieval import build_lore_retriever
+from backend.src.agent_workflow import LocalAgentWorkflow
+from backend.src.class_stats import apply_class_stats
+from backend.src.game_manager import GameManager
+from backend.src.state import GameState, PartyMember
+from backend.src.retrieval import build_lore_retriever
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"

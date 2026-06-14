@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from .agents import AgentAction, PERSONAS
 from .game_manager import GameManager
+from .llm import LocalLLMClient
 from .retrieval import FoundryIQLoreRetriever, build_lore_retriever
 from .tools import LocalLoreRetriever, RetrievedLore, RPGTools
 
@@ -22,6 +25,7 @@ class TurnPlan:
     state_patch: dict[str, Any] = field(default_factory=dict)
     retrieval_query: str = ""
     scope: str = "player"
+    source: str = "heuristic"
 
 
 @dataclass
@@ -51,12 +55,10 @@ CHECK_TO_STAT = {
 
 
 class LocalAgentWorkflow:
-    """A local orchestration layer that mirrors the intended Agent Framework flow.
+    """Local orchestration that mirrors the intended Agent Framework turn loop.
 
-    The implementation is deterministic and self-contained so the app works even
-    without a live Foundry integration. The orchestration boundaries are kept
-    explicit so a hosted Agent Framework or Foundry IQ client can be swapped in
-    later with minimal changes.
+    The workflow uses an OpenAI-compatible chat endpoint when credentials are
+    configured, but remains fully runnable with deterministic fallbacks.
     """
 
     def __init__(
@@ -64,10 +66,12 @@ class LocalAgentWorkflow:
         gm: GameManager,
         lore_retriever: FoundryIQLoreRetriever | LocalLoreRetriever | None = None,
         tools: RPGTools | None = None,
+        llm: LocalLLMClient | None = None,
     ) -> None:
         self.gm = gm
         self.tools = tools or RPGTools(gm)
         self.lore_retriever = lore_retriever or build_lore_retriever()
+        self.llm = llm or LocalLLMClient.from_env()
         self._pending_intro: str | None = None
 
     def reset_game_manager(self, gm: GameManager) -> None:
@@ -83,11 +87,10 @@ class LocalAgentWorkflow:
                     "session_id": session_id,
                     "intent": "clarify",
                     "reason": "empty_action",
+                    "source": "fallback",
                 },
             )
-            self.gm.update(
-                narration="The Game Master waits for a clearer action.",
-            )
+            self.gm.update(narration="The Game Master waits for a clearer action.")
             return TurnResult(
                 narration="The Game Master waits for a clearer action.",
                 narration_setup="The Game Master waits for a clearer action.",
@@ -96,7 +99,7 @@ class LocalAgentWorkflow:
                 choices=["Describe what your character does."],
                 state=self.gm.get_state(),
                 trace=self.gm.get_trace(),
-                plan={"intent": "clarify", "agents": [], "needs_dice": False},
+                plan={"intent": "clarify", "agents": [], "needs_dice": False, "source": "fallback"},
                 lore={"chunks": [], "citations": [], "query": ""},
                 dice=None,
                 warnings=[],
@@ -111,6 +114,7 @@ class LocalAgentWorkflow:
                 "agents": plan.agents,
                 "needs_dice": plan.needs_dice,
                 "retrieval_query": plan.retrieval_query,
+                "source": plan.source,
             },
         )
 
@@ -125,9 +129,9 @@ class LocalAgentWorkflow:
             },
         )
 
-        specialist_notes = []
+        specialist_notes: list[str] = []
         for agent_name in plan.agents:
-            note = self._consult_agent(agent_name, action, lore)
+            note = self._consult_agent(agent_name, action, lore, plan)
             specialist_notes.append(note)
             self.gm.record_trace(
                 "agent",
@@ -135,6 +139,7 @@ class LocalAgentWorkflow:
                     "session_id": session_id,
                     "agent": agent_name,
                     "note": note,
+                    "source": "llm" if self.llm.available else "fallback",
                 },
             )
 
@@ -153,10 +158,9 @@ class LocalAgentWorkflow:
                 difficulty=plan.dice_difficulty or self._difficulty_for_intent(plan.intent),
                 modifier=modifier,
             )
-            self.gm.record_trace("dice", dice_result)
 
         state_patch = self._derive_state_patch(action, plan, lore, dice_result)
-        warnings = []
+        warnings: list[str] = []
         if state_patch:
             warnings = self.tools.apply_patch(state_patch)
             self.gm.record_trace(
@@ -171,18 +175,18 @@ class LocalAgentWorkflow:
         narration_setup, narration_outcome = self._compose_narration(
             action, plan, lore, specialist_notes, dice_result, warnings
         )
-        full_narration = narration_setup + (" " + narration_outcome if narration_outcome else "")
-        self.gm.update(narration=full_narration)
-
         followups = self._generate_followups(plan, dice_result)
+
         followup_text = ""
         if followups:
             followup_text = " " + " ".join(f["narration"] for f in followups)
-            self.gm.update(narration=full_narration + followup_text)
+
+        full_narration = narration_setup + (" " + narration_outcome if narration_outcome else "") + followup_text
+        self.gm.update(narration=full_narration)
 
         choices = self._build_choices(plan.intent, dice_result)
         return TurnResult(
-            narration=full_narration + followup_text,
+            narration=full_narration,
             narration_setup=narration_setup,
             narration_outcome=narration_outcome,
             followups=followups,
@@ -196,6 +200,29 @@ class LocalAgentWorkflow:
         )
 
     def _build_plan(self, action: str, session_id: str) -> TurnPlan:
+        heuristic = self._heuristic_plan(action, session_id)
+        if not self.llm.available:
+            return heuristic
+
+        llm_plan = self._llm_build_plan(action, session_id)
+        if not llm_plan:
+            return heuristic
+
+        # Merge LLM output with safe defaults.
+        heuristic.intent = llm_plan.get("intent", heuristic.intent) or heuristic.intent
+        heuristic.agents = self._clean_agents(llm_plan.get("agents", heuristic.agents))
+        heuristic.needs_dice = bool(llm_plan.get("needs_dice", heuristic.needs_dice))
+        heuristic.dice_actor = llm_plan.get("dice_actor") or heuristic.dice_actor
+        heuristic.dice_check = llm_plan.get("dice_check") or heuristic.dice_check
+        heuristic.dice_difficulty = self._coerce_int(llm_plan.get("dice_difficulty"), heuristic.dice_difficulty)
+        heuristic.retrieval_query = llm_plan.get("retrieval_query", heuristic.retrieval_query) or heuristic.retrieval_query
+        heuristic.scope = llm_plan.get("scope", heuristic.scope) or heuristic.scope
+        if isinstance(llm_plan.get("state_patch"), dict):
+            heuristic.state_patch = llm_plan["state_patch"]
+        heuristic.source = "llm"
+        return heuristic
+
+    def _heuristic_plan(self, action: str, session_id: str) -> TurnPlan:
         lowered = action.lower()
         intent = self._classify_intent(lowered)
         agents = self._select_agents(intent, lowered)
@@ -220,7 +247,71 @@ class LocalAgentWorkflow:
             state_patch=state_patch,
             retrieval_query=retrieval_query,
             scope=scope,
+            source="heuristic",
         )
+
+    def _llm_build_plan(self, action: str, session_id: str) -> dict[str, Any] | None:
+        state = self.gm.get_state()
+        prompt = (
+            "You are the Game Master planner for a fantasy RPG.\n"
+            "Return ONLY a JSON object with keys:\n"
+            "intent, agents, needs_dice, dice_actor, dice_check, dice_difficulty, retrieval_query, scope, state_patch.\n"
+            "Allowed intents: combat, support, stealth, travel, investigate, arcana, social, clarify.\n"
+            "Allowed scope values: player or gm.\n"
+            "Use only agent names from the current party when selecting agents.\n"
+            "Keep retrieval_query concise. state_patch must be a JSON object.\n"
+        )
+        user = {
+            "session_id": session_id,
+            "action": action,
+            "campaign": state.get("campaign", ""),
+            "location": state.get("location", ""),
+            "active_quest": state.get("active_quest", ""),
+            "party": [m.get("agent") for m in state.get("party", [])],
+            "world_flags": state.get("world_flags", {}),
+        }
+        result = self.llm.complete(
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+            ],
+            temperature=0.1,
+            max_tokens=400,
+            json_mode=True,
+        )
+        if not result.used or not result.text:
+            return None
+
+        data = self._extract_json(result.text)
+        return data if isinstance(data, dict) else None
+
+    def _extract_json(self, text: str) -> Any:
+        text = text.strip()
+        try:
+            return json.loads(text)
+        except Exception:
+            pass
+        match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        if not match:
+            return None
+        try:
+            return json.loads(match.group(0))
+        except Exception:
+            return None
+
+    def _clean_agents(self, agents: Any) -> list[str]:
+        party_names = {m["agent"] for m in self.gm.get_state().get("party", [])}
+        clean: list[str] = []
+        for agent in agents or []:
+            if isinstance(agent, str) and agent in party_names and agent not in clean:
+                clean.append(agent)
+        return clean or self._select_agents("social", "")
+
+    def _coerce_int(self, value: Any, default: int | None = None) -> int | None:
+        try:
+            return int(value)
+        except Exception:
+            return default
 
     def _classify_intent(self, lowered_action: str) -> str:
         if any(k in lowered_action for k in ("attack", "strike", "fight", "battle", "slash")):
@@ -250,10 +341,8 @@ class LocalAgentWorkflow:
         agents = list(mapping.get(intent, ["Warrior", "Mage"]))
         if "rival" in lowered_action or "trust" in lowered_action:
             agents.append("Rival")
-        # Filter to only agents that exist in the current party.
         party_names = {m["agent"] for m in self.gm.get_state().get("party", [])}
         agents = [a for a in agents if a in party_names]
-        # Preserve order while deduplicating.
         seen = set()
         deduped = []
         for agent in agents:
@@ -273,7 +362,32 @@ class LocalAgentWorkflow:
             parts.append("bestiary enemy tactics")
         return " | ".join(part for part in parts if part)
 
-    def _consult_agent(self, agent_name: str, action: str, lore: RetrievedLore) -> str:
+    def _consult_agent(self, agent_name: str, action: str, lore: RetrievedLore, plan: TurnPlan) -> str:
+        if self.llm.available:
+            system = (
+                f"You are the {agent_name} persona in a fantasy RPG party.\n"
+                "Respond in one short sentence, staying in character.\n"
+                "Your reply should help the Game Master reason about the player's action.\n"
+            )
+            user = {
+                "action": action,
+                "intent": plan.intent,
+                "retrieved_lore": [chunk.to_dict() for chunk in lore.chunks],
+                "current_location": self.gm.get_state().get("location", ""),
+                "current_quest": self.gm.get_state().get("active_quest", ""),
+                "party": [m.get("agent") for m in self.gm.get_state().get("party", [])],
+            }
+            result = self.llm.complete(
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+                ],
+                temperature=0.3,
+                max_tokens=160,
+            )
+            if result.used and result.text:
+                return result.text.strip()
+
         action_lc = action.lower()
         first_chunk = lore.chunks[0].content if lore.chunks else "No lore retrieved."
         if agent_name == "Warrior":
@@ -334,7 +448,6 @@ class LocalAgentWorkflow:
         lowered = action.lower()
         state = self.gm.get_state()
 
-        # Travel: if a known location appears in the action, move there.
         known_locations = {
             "whispering woods": "Whispering Woods",
             "iron sluice": "Iron Sluice",
@@ -352,8 +465,7 @@ class LocalAgentWorkflow:
                 patch["flags_set"] = {"quest_progress": "advanced"}
 
         if not dice_result:
-            cleaned = {k: v for k, v in patch.items() if v}
-            return cleaned
+            return {k: v for k, v in patch.items() if v}
 
         outcome = dice_result.get("result", "failure")
         actor = dice_result.get("actor", "")
@@ -408,8 +520,7 @@ class LocalAgentWorkflow:
             elif outcome == "failure":
                 patch["flags_set"]["offended"] = True
 
-        cleaned = {k: v for k, v in patch.items() if v}
-        return cleaned
+        return {k: v for k, v in patch.items() if v}
 
     def _compose_narration(
         self,
