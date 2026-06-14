@@ -9,7 +9,7 @@ function renderParty(){
     const STAT_ABBR = {strength:'STR',dexterity:'DEX',constitution:'CON',intelligence:'INT',wisdom:'WIS',charisma:'CHA'};
     const STAT_TIP = {strength:'Physical power — melee attacks & forced actions',dexterity:'Agility & reflexes — stealth, speed, dodging',constitution:'Toughness — endurance & resistance to harm',intelligence:'Knowledge & reasoning — arcana & investigation',wisdom:'Perception & judgement — awareness & willpower',charisma:'Social force — persuasion, deception & charm'};
     const statRows = Object.keys(STAT_ABBR).map(s =>
-      '<tr class="st-row" title="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(m[s]??10)+'</td></tr>'
+      '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(m[s]??10)+'</td></tr>'
     ).join('');
     html += '<div class="agent-card'+(isLit?' lit':'')+'" data-role="'+m.agent+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+m.agent.toUpperCase()+'<span>'+m.name+' '+(isLit?'\u2694 active':'\u25C8 standby')+'</span></div><table class="stat-table">'+statRows+'</table></div>';
   });
