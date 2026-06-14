@@ -32,6 +32,7 @@ DEFAULT_STATE = GameState(
         PartyMember(agent="Warrior", name="Jax", health=20),
         PartyMember(agent="Mage", name="Lyra", health=16, inventory=["Staff"]),
         PartyMember(agent="Healer", name="Bram", health=18, inventory=["Medkit"]),
+        PartyMember(agent="Bard", name="Seren", health=16, inventory=["Lute"]),
         PartyMember(agent="Rival", name="Kael", health=20, inventory=["Hidden Blade"]),
     ],
     player_character="Warrior",
@@ -49,6 +50,7 @@ class ResetRequest(BaseModel):
         {"agent": "Warrior", "name": "Jax", "health": 20, "max_health": 20, "inventory": []},
         {"agent": "Mage", "name": "Lyra", "health": 16, "max_health": 20, "inventory": ["Staff"]},
         {"agent": "Healer", "name": "Bram", "health": 18, "max_health": 20, "inventory": ["Medkit"]},
+        {"agent": "Bard", "name": "Seren", "health": 16, "max_health": 20, "inventory": ["Lute"]},
         {"agent": "Rival", "name": "Kael", "health": 20, "max_health": 20, "inventory": ["Hidden Blade"]},
     ]
     world_flags: dict[str, bool | str] = {}
@@ -82,7 +84,7 @@ app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 @app.get("/character-types")
 def character_types():
-    return ["Warrior", "Mage", "Healer"]  # Rival (Kael) is AI-only, never player-pickable
+    return ["Warrior", "Mage", "Healer", "Bard"]  # Rival (Kael) is AI-only, never player-pickable
 
 
 @app.get("/")

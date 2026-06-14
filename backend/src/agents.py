@@ -84,6 +84,21 @@ class HealerPersona(BasePersona):
         return AgentPerspective(self.name, self.role, thought, suggestion)
 
 
+class BardPersona(BasePersona):
+    name = "Bard"
+    role = "inspire"
+
+    def observe(self, action: str, lore_snippet: str) -> AgentPerspective:
+        lowered = action.lower()
+        if any(k in lowered for k in ("persuade", "talk", "negotiate", "sing", "perform", "charm")):
+            thought = "Words can open doors that blades cannot."
+            suggestion = "Use the moment — a well-placed story or song shifts the mood entirely."
+        else:
+            thought = "Every scene has a narrative angle worth exploiting."
+            suggestion = "Read the room and find what the others are missing."
+        return AgentPerspective(self.name, self.role, thought, suggestion)
+
+
 class RivalPersona(BasePersona):
     name = "Rival"
     role = "disruptive"
@@ -102,5 +117,6 @@ PERSONAS = {
     "Mage": MagePersona(),
     "Rogue": RoguePersona(),
     "Healer": HealerPersona(),
+    "Bard": BardPersona(),
     "Rival": RivalPersona(),
 }
