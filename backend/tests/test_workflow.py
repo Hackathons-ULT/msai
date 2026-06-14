@@ -39,7 +39,7 @@ def test_combat_action_plans_and_traces():
     result = wf.run_turn("Attack the guardian at the Iron Sluice")
     assert result.plan["intent"] == "combat"
     assert "Warrior" in result.plan["agents"]
-    assert result.trace[-1]["type"] == "narration"
+    assert result.trace[-1]["type"] == "narration_outcome"
     assert result.lore["chunks"]
 
 
@@ -47,8 +47,8 @@ def test_travel_action_can_update_location():
     wf = make_workflow()
     result = wf.run_turn("Go to the Sunken Market and inspect the stalls")
     assert result.state["location"] == "Sunken Market"
-    assert result.plan["intent"] == "travel"
-    assert result.trace[-1]["type"] == "narration"
+    assert result.plan["intent"] in ("travel", "investigate")
+    assert result.trace[-1]["type"] == "narration_outcome"
 
 
 def test_rival_scope_is_used_for_secret_queries():

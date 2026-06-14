@@ -179,6 +179,8 @@ class LocalAgentWorkflow:
 
         full_narration = narration_setup + (" " + narration_outcome if narration_outcome else "")
         self.gm.update(narration=full_narration)
+        self.gm.record_trace("narration_setup", {"text": narration_setup})
+        self.gm.record_trace("narration_outcome", {"text": narration_outcome})
 
         choices = self._build_choices(plan.intent, dice_result)
         return TurnResult(
@@ -528,48 +530,16 @@ class LocalAgentWorkflow:
         dice_result: dict | None,
         warnings: list[str],
     ) -> tuple[str, str]:
-        if self.llm.available:
-            state = self.gm.get_state()
-            agent_lines = ". ".join(
-                f"{agent} says: {note}" for agent, note in zip(plan.agents, specialist_notes)
-            )
-            prompt = (
-                "You are the Game Master narrating a fantasy RPG scene.\n"
-                "Write a short paragraph describing what happens in response to the player's action.\n"
-                "Weave the character reactions into the scene naturally. Use vivid, concise prose.\n"
-                "Do not use markdown. Keep it to 3-4 sentences.\n"
-            )
-            context = (
-                f"Player action: {action}\n"
-                f"Location: {state.get('location', 'unknown')}\n"
-                f"Quest: {state.get('active_quest', 'unknown')}\n"
-                f"Character reactions: {agent_lines}\n"
-            )
-            if dice_result:
-                context += (
-                    f"Dice roll: {dice_result['actor']} rolled {dice_result['total']} "
-                    f"vs DC {dice_result['difficulty']} = {dice_result['result']}. "
-                    f"{dice_result.get('consequence', '')}\n"
-                )
-            result = self.llm.complete(
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": context},
-                ],
-                temperature=0.4,
-                max_tokens=500,
-            )
-            if result.used and result.text:
-                text = result.text.strip()
-                outcome = ""
-                if dice_result:
-                    outcome = f"The check landed as {dice_result['result']} ({dice_result['total']} vs DC {dice_result['difficulty']}). {dice_result.get('consequence', '')}"
-                if warnings:
-                    outcome = outcome + " " + " ".join(warnings) if outcome else " ".join(warnings)
-                return text, outcome.strip()
+        llm_result = self._llm_compose_narration(action, plan, lore, specialist_notes, dice_result, warnings)
+        if llm_result is not None:
+            setup, outcome = llm_result
+            if warnings:
+                outcome = outcome + " " + " ".join(warnings) if outcome else " ".join(warnings)
+            return setup.strip(), outcome.strip()
 
         first_citation = lore.citations[0] if lore.citations else "local world pack"
         note_bits = " | ".join(f"{agent}: {note}" for agent, note in zip(plan.agents, specialist_notes))
+        state = self.gm.get_state()
         setup = (
             f"The party considers: {action}. "
             f"Grounded by {first_citation}. "
@@ -581,9 +551,100 @@ class LocalAgentWorkflow:
             if dice_result.get("consequence"):
                 outcome += f" {dice_result['consequence']}"
             setup += " The Game Master calls for a die roll."
+        else:
+            location = state.get("location", "their destination")
+            lore_bit = ""
+            if lore.chunks:
+                lore_bit = " " + lore.chunks[0].content[:120]
+            outcome = f"The party continues onward at {location}.{lore_bit}"
         if warnings:
             outcome = outcome + " " + " ".join(warnings) if outcome else " ".join(warnings)
         return setup.strip(), outcome.strip()
+
+    def _llm_compose_narration(
+        self,
+        action: str,
+        plan: TurnPlan,
+        lore: RetrievedLore,
+        specialist_notes: list[str],
+        dice_result: dict | None,
+        warnings: list[str],
+    ) -> tuple[str, str] | None:
+        if not self.llm.available:
+            return None
+
+        state = self.gm.get_state()
+        party_names = [m.get("name", m.get("agent", "?")) for m in state.get("party", [])]
+        party_agents = [m.get("agent", "?") for m in state.get("party", [])]
+        lore_snippets = [chunk.content[:200] for chunk in lore.chunks[:2]]
+        note_lines = [f"{agent}: {note}" for agent, note in zip(plan.agents, specialist_notes)]
+
+        dice_info = ""
+        if dice_result:
+            mod = dice_result.get("modifier", 0)
+            mod_str = f" +{mod}" if mod > 0 else f" {mod}" if mod < 0 else ""
+            dice_info = (
+                f"Dice rolled: {dice_result.get('roll', '?')}{mod_str} "
+                f"= {dice_result.get('total', '?')} vs DC {dice_result.get('difficulty', '?')} "
+                f"→ {dice_result.get('result', '?').upper()}"
+            )
+            if dice_result.get("consequence"):
+                dice_info += f" (consequence: {dice_result['consequence']})"
+
+        system_prompt = (
+            "You are the Game Master narrating a fantasy RPG turn.\n"
+            "Write TWO paragraphs separated by the exact delimiter: ---PART TWO---\n\n"
+            "Part One (Setup): The narrative lead-up to the player's action. Describe the scene,\n"
+            "the party's position, and build tension. Incorporate the retrieved lore and the\n"
+            "agents' perspectives naturally into the description.\n\n"
+            "Part Two (Outcome): The narrative result of the action. Describe what actually happens.\n"
+            "Blend any dice result into the story — a success means the action lands well,\n"
+            "a failure means complications arise, a partial means mixed results.\n"
+            "If there is no dice, describe a natural consequence of the action.\n\n"
+            "Write in present tense, third person. Keep each paragraph to 2-4 sentences.\n"
+            "Do not label the parts — just write them separated by the delimiter."
+        )
+
+        user_prompt = (
+            f"Campaign: {state.get('campaign', '?')}\n"
+            f"Location: {state.get('location', '?')}\n"
+            f"Active Quest: {state.get('active_quest', 'none')}\n"
+            f"Party: {', '.join(f'{n} ({a})' for n, a in zip(party_names, party_agents))}\n"
+            f"Player Character: {state.get('player_character', 'the hero')}\n\n"
+            f"Player action: \"{action}\"\n"
+            f"Intent: {plan.intent}\n\n"
+        )
+
+        if lore_snippets:
+            user_prompt += f"Retrieved lore:\n" + "\n".join(f"- {s}" for s in lore_snippets) + "\n\n"
+        if note_lines:
+            user_prompt += f"Agent perspectives:\n" + "\n".join(f"- {l}" for l in note_lines) + "\n\n"
+        if dice_info:
+            user_prompt += f"Dice result: {dice_info}\n"
+
+        result = self.llm.complete(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.5,
+            max_tokens=400,
+        )
+
+        if not result.used or not result.text:
+            return None
+
+        text = result.text.strip()
+        delimiter = "---PART TWO---"
+        if delimiter in text:
+            parts = text.split(delimiter, 1)
+            return parts[0].strip(), parts[1].strip()
+
+        mid = len(text) // 2
+        split_at = text.rfind(". ", 0, mid) + 1
+        if split_at > 0:
+            return text[:split_at].strip(), text[split_at:].strip()
+        return text, ""
 
     def _build_choices(self, intent: str, dice_result: dict | None) -> list[str]:
         if dice_result and dice_result.get("result") == "failure":

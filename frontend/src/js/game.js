@@ -15,6 +15,13 @@ function pushDialogue(speaker, text){
   renderRecap();
 }
 
+function appendNarration(html){
+  let current = narrText.innerHTML;
+  current = current.replace('<span class="cursor"></span>', '');
+  narrText.innerHTML = current + html + '<span class="cursor"></span>';
+  narrText.scrollTop = narrText.scrollHeight;
+}
+
 function renderRecap(){
   if(!gameState) return;
   const members = gameState.party || [];
@@ -41,35 +48,41 @@ async function sendAct(){
     renderParty();
     if(res.trace) renderTrace(res.trace);
     showGM();
+    const setup = res.narration_setup || '';
+    const outcome = res.narration_outcome || '';
     if(res.dice) {
-      narrText.innerHTML = (res.narration_setup || 'The Game Master calls for a die roll.') + '<span class="cursor"></span>';
+      appendNarration(setup || 'The Game Master calls for a die roll.');
+      pushDialogue('GM', setup || '');
       setStage('die');
       startDieAnimation(res.dice.roll, res.dice.total, res.dice.modifier, res.dice.result, res.dice.consequence, function(){
-        if(res.narration_outcome){
-          narrText.innerHTML = res.narration_outcome + '<span class="cursor"></span>';
-          pushDialogue('GM', res.narration_outcome);
+        if(outcome){
+          appendNarration('<br><br>' + outcome);
+          pushDialogue('GM', outcome);
         }
         if(res.followups && res.followups.length){
-          const agentTexts = res.followups.map(f =>
-            '<span style="color:#c8922a">'+f.agent+':</span> '+f.narration
-          ).join('<br>');
-          narrText.innerHTML = agentTexts + '<span class="cursor"></span>';
-          res.followups.forEach(f => pushDialogue(f.agent, f.narration));
-          setTimeout(function(){ setStage('agents'); }, 2000);
+          setTimeout(function(){
+            const agentTexts = res.followups.map(f =>
+              '<span style="color:#c8922a">'+f.agent+':</span> '+f.narration
+            ).join('<br>');
+            appendNarration('<br><br>' + agentTexts);
+            res.followups.forEach(f => pushDialogue(f.agent, f.narration));
+            setTimeout(function(){ setStage('agents'); }, 2000);
+          }, 1500);
         } else {
-          setStage('agents');
+          setTimeout(function(){ setStage('agents'); }, 1500);
         }
       });
     } else {
-      const narration = res.narration || 'The agents responded.';
-      narrText.innerHTML = narration + '<span class="cursor"></span>';
-      pushDialogue('GM', narration);
+      const combined = setup + (setup && outcome ? '<br><br>' : '') + outcome;
+      appendNarration(combined);
+      if (setup) pushDialogue('GM', setup);
+      if (outcome) pushDialogue('GM', outcome);
       if(res.followups && res.followups.length){
         setTimeout(function(){
           const agentTexts = res.followups.map(f =>
             '<span style="color:#c8922a">'+f.agent+':</span> '+f.narration
           ).join('<br>');
-          narrText.innerHTML = agentTexts + '<span class="cursor"></span>';
+          appendNarration('<br><br>' + agentTexts);
           res.followups.forEach(f => pushDialogue(f.agent, f.narration));
           setTimeout(function(){ setStage('agents'); }, 2000);
         }, 800);

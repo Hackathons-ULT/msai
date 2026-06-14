@@ -143,7 +143,7 @@ document.getElementById('startBtn').onclick = async () => {
   localStorage.setItem('opencode_quest', quest);
   if(uploadedFileContent) localStorage.setItem('opencode_uploadedRules', uploadedFileContent);
 
-  window.location.href = '/frontend/src/game.html';
+  window.location.href = 'game.html';
 };
 
 loadClasses();
