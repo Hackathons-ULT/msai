@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Dict, List, Optional, Union
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,14 +47,14 @@ class ResetRequest(BaseModel):
     campaign: str = "The Lost Sigil"
     location: str = "Whispering Woods"
     active_quest: str = "Find the ancient artifact"
-    party: list[dict] = [
+    party: List[dict] = [
         {"agent": "Warrior", "name": "Jax", "health": 20, "max_health": 20, "inventory": []},
         {"agent": "Mage", "name": "Lyra", "health": 16, "max_health": 20, "inventory": ["Staff"]},
         {"agent": "Healer", "name": "Bram", "health": 18, "max_health": 20, "inventory": ["Medkit"]},
         {"agent": "Bard", "name": "Seren", "health": 16, "max_health": 20, "inventory": ["Lute"]},
         {"agent": "Rival", "name": "Kael", "health": 20, "max_health": 20, "inventory": ["Hidden Blade"]},
     ]
-    world_flags: dict[str, bool | str] = {}
+    world_flags: Dict[str, Union[bool, str]] = {}
     player_character: str = "Warrior"
 
 
@@ -63,13 +64,13 @@ class TurnRequest(BaseModel):
 
 
 class UpdateRequest(BaseModel):
-    location: str | None = None
-    active_quest: str | None = None
-    health_changes: dict[str, int] | None = None
-    inventory_add: dict[str, list[str]] | None = None
-    inventory_remove: dict[str, list[str]] | None = None
-    flags_set: dict[str, bool | str] | None = None
-    narration: str | None = None
+    location: Optional[str] = None
+    active_quest: Optional[str] = None
+    health_changes: Optional[Dict[str, int]] = None
+    inventory_add: Optional[Dict[str, List[str]]] = None
+    inventory_remove: Optional[Dict[str, List[str]]] = None
+    flags_set: Optional[Dict[str, Union[bool, str]]] = None
+    narration: Optional[str] = None
 
 
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
