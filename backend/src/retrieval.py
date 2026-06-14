@@ -8,7 +8,7 @@ import requests
 from .tools import LocalLoreRetriever, RetrievedChunk, RetrievedLore
 
 _ENDPOINT = os.getenv("AZURE_SEARCH_ENDPOINT", "https://agent-rpg-game-srch.search.windows.net")
-_KEY = os.getenv("AZURE_SEARCH_KEY", "")
+_KEY = os.getenv("AZURE_SEARCH_KEY") or os.getenv("SEARCH_KEY", "")
 _PLAYER_KB = os.getenv("PLAYER_KB", "knowledgebaseforrpggame")
 _GM_KB = os.getenv("GM_KB", "kb-gm-secrets")
 _API_VERSION = "2026-05-01-preview"
@@ -59,23 +59,56 @@ class FoundryIQLoreRetriever:
                 except (json.JSONDecodeError, TypeError):
                     continue
                 for i, ch in enumerate(raw_chunks[:top_k]):
+                    ref = ch.get("ref_id")
                     chunks.append(RetrievedChunk(
-                        title=ch.get("title", ""),
-                        content=ch.get("content", ""),
-                        source=ch.get("ref_id", str(i)),
+                        title=str(ch.get("title", "")),
+                        content=str(ch.get("content", "")),
+                        source=str(ref) if ref is not None else str(i),
                         score=round(1.0 - i * 0.1, 2),
                     ))
 
         for ref in data.get("references", []):
             doc_key = ref.get("docKey") or ref.get("id") or ""
-            if doc_key and doc_key not in citations:
-                citations.append(doc_key)
+            if doc_key is not None and doc_key != "":
+                doc_key = str(doc_key)
+                for c in chunks:
+                    if doc_key in c.source or doc_key in c.title:
+                        c.source = doc_key
+                if doc_key not in citations:
+                    citations.append(doc_key)
+
+        # Fallback: use chunk sources as citations if references were empty
+        if not citations and chunks:
+            citations = list({c.source for c in chunks})
 
         return RetrievedLore(query=query, scope=scope, chunks=chunks[:top_k], citations=citations)
 
 
-def build_lore_retriever() -> FoundryIQLoreRetriever | LocalLoreRetriever:
-    """Return FoundryIQLoreRetriever when AZURE_SEARCH_KEY is set, else fall back to local."""
+class HybridLoreRetriever:
+    """Tries Foundry IQ first, falls back to local file retrieval."""
+
+    def __init__(self) -> None:
+        self.foundry = FoundryIQLoreRetriever()
+        self.local = LocalLoreRetriever()
+
+    def _has_proper_citations(self, result: RetrievedLore) -> bool:
+        for c in result.citations:
+            if c and not c.isdigit() and c != str(id(c)):
+                return True
+        return False
+
+    def retrieve(self, query: str, scope: str = "player", top_k: int = 3) -> RetrievedLore:
+        result = self.foundry.retrieve(query, scope=scope, top_k=top_k)
+        if result.chunks and self._has_proper_citations(result):
+            return result
+        return self.local.retrieve(query, scope=scope, top_k=top_k)
+
+    def refresh(self) -> None:
+        self.local.refresh()
+
+
+def build_lore_retriever() -> HybridLoreRetriever | LocalLoreRetriever:
+    """Return HybridLoreRetriever when search key is set, else local only."""
     if _KEY:
-        return FoundryIQLoreRetriever()
+        return HybridLoreRetriever()
     return LocalLoreRetriever()

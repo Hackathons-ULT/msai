@@ -12,11 +12,11 @@
 - **Personality:** Hyper-fixated, brilliant, dangerously reckless. Loves pushing ancient power cells past their limits.
 - **Flaw (Aetheric Burnout):** Lyra gets violently over-excited in intense combat. If the party faces too many enemies, she will dump her entire aetheric reservoir in one massive blast, leaving herself entirely drained and helpless.
 
-## Rogue
-- **Name/Alias:** Kael / "The Shade"
-- **Role & Gear:** A wiry, quick-moving smuggler. Light leather armor, dark goggles, multiple tool pouches. Expert lockpick and trap disarmer.
-- **Personality:** Pragmatic, guarded, secretive. Struggles deeply with trust.
-- **Flaw (Self-Preservation):** If a situation spirals out of control, Kael's instinct is to vanish into the shadows and refuse to assist until it's personally safe.
+## Bard
+- **Name/Alias:** Seren / "The Silver-Tongue"
+- **Role & Gear:** A roving storyteller with a battered lute slung across their back. Worn leather coat with hidden pockets for scrolls and trinkets, a scarf embroidered with old hymns.
+- **Personality:** Charming, quick-witted, never meets a stranger. Uses stories and songs to lift spirits or cut deals.
+- **Flaw (Vindictive Verse):** Seren cannot abide a slight. If insulted or betrayed, they will weave a mocking ballad that spreads like wildfire, burning bridges with reckless abandon.
 
 ## Healer
 - **Name/Alias:** Dr. Bram / "The Tinker"

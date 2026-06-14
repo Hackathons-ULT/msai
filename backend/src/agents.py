@@ -195,6 +195,39 @@ class BardPersona(BasePersona):
             suggestion = "Watch for opportunities to inspire or deceive."
         return AgentPerspective(self.name, self.role, thought, suggestion)
 
+    def act_intro(self, state: dict) -> AgentAction:
+        return AgentAction(
+            agent=self.name,
+            narration=f"{self.name} plucks a soft chord, letting the melody settle over the group like a steadying hand.",
+        )
+
+    def act_followup(self, state: dict, intent: str, outcome: str | None) -> AgentAction | None:
+        if intent == "combat":
+            if outcome == "success":
+                return AgentAction(
+                    agent=self.name,
+                    narration=f"{self.name} weaves a triumphant riff, bolstering the party's spirits.",
+                    state_patch={"health_changes": {self.name: 1}},
+                )
+            return AgentAction(
+                agent=self.name,
+                narration=f"{self.name} shifts into a tense, rhythmic pattern, bracing for the next exchange.",
+            )
+        if intent == "social":
+            return AgentAction(
+                agent=self.name,
+                narration=f"{self.name} steps forward with a disarming grin, ready to turn the conversation.",
+            )
+        if outcome == "success":
+            return AgentAction(
+                agent=self.name,
+                narration=f"{self.name} lets out a low whistle of approval. 'Well, that went better than expected.'",
+            )
+        return AgentAction(
+            agent=self.name,
+            narration=f"{self.name} mutters under their breath, already composing a verse about this misadventure.",
+        )
+
 
 class RivalPersona(BasePersona):
     name = "Rival"

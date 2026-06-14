@@ -8,7 +8,7 @@ from typing import Any
 from .agents import AgentAction, PERSONAS
 from .game_manager import GameManager
 from .llm import LocalLLMClient
-from .retrieval import FoundryIQLoreRetriever, build_lore_retriever
+from .retrieval import HybridLoreRetriever, FoundryIQLoreRetriever, build_lore_retriever
 from .tools import LocalLoreRetriever, RetrievedLore, RPGTools
 
 
@@ -64,7 +64,7 @@ class LocalAgentWorkflow:
     def __init__(
         self,
         gm: GameManager,
-        lore_retriever: FoundryIQLoreRetriever | LocalLoreRetriever | None = None,
+        lore_retriever: HybridLoreRetriever | FoundryIQLoreRetriever | LocalLoreRetriever | None = None,
         tools: RPGTools | None = None,
         llm: LocalLLMClient | None = None,
     ) -> None:
@@ -177,11 +177,7 @@ class LocalAgentWorkflow:
         )
         followups = self._generate_followups(plan, dice_result)
 
-        followup_text = ""
-        if followups:
-            followup_text = " " + " ".join(f["narration"] for f in followups)
-
-        full_narration = narration_setup + (" " + narration_outcome if narration_outcome else "") + followup_text
+        full_narration = narration_setup + (" " + narration_outcome if narration_outcome else "")
         self.gm.update(narration=full_narration)
 
         choices = self._build_choices(plan.intent, dice_result)
@@ -254,12 +250,13 @@ class LocalAgentWorkflow:
         state = self.gm.get_state()
         prompt = (
             "You are the Game Master planner for a fantasy RPG.\n"
-            "Return ONLY a JSON object with keys:\n"
-            "intent, agents, needs_dice, dice_actor, dice_check, dice_difficulty, retrieval_query, scope, state_patch.\n"
+            "Return ONLY a compact JSON object with these keys:\n"
+            "intent (string), agents (list of strings), needs_dice (bool),\n"
+            "dice_actor (string or null), dice_check (string or null),\n"
+            "dice_difficulty (int or null), retrieval_query (string),\n"
+            "scope (\"player\" or \"gm\"), state_patch (object).\n"
             "Allowed intents: combat, support, stealth, travel, investigate, arcana, social, clarify.\n"
-            "Allowed scope values: player or gm.\n"
-            "Use only agent names from the current party when selecting agents.\n"
-            "Keep retrieval_query concise. state_patch must be a JSON object.\n"
+            "Pick 1-3 agents maximum. Be concise. No extra text.\n"
         )
         user = {
             "session_id": session_id,
@@ -276,7 +273,7 @@ class LocalAgentWorkflow:
                 {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
             ],
             temperature=0.1,
-            max_tokens=400,
+            max_tokens=800,
             json_mode=True,
         )
         if not result.used or not result.text:
@@ -531,6 +528,46 @@ class LocalAgentWorkflow:
         dice_result: dict | None,
         warnings: list[str],
     ) -> tuple[str, str]:
+        if self.llm.available:
+            state = self.gm.get_state()
+            agent_lines = ". ".join(
+                f"{agent} says: {note}" for agent, note in zip(plan.agents, specialist_notes)
+            )
+            prompt = (
+                "You are the Game Master narrating a fantasy RPG scene.\n"
+                "Write a short paragraph describing what happens in response to the player's action.\n"
+                "Weave the character reactions into the scene naturally. Use vivid, concise prose.\n"
+                "Do not use markdown. Keep it to 3-4 sentences.\n"
+            )
+            context = (
+                f"Player action: {action}\n"
+                f"Location: {state.get('location', 'unknown')}\n"
+                f"Quest: {state.get('active_quest', 'unknown')}\n"
+                f"Character reactions: {agent_lines}\n"
+            )
+            if dice_result:
+                context += (
+                    f"Dice roll: {dice_result['actor']} rolled {dice_result['total']} "
+                    f"vs DC {dice_result['difficulty']} = {dice_result['result']}. "
+                    f"{dice_result.get('consequence', '')}\n"
+                )
+            result = self.llm.complete(
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": context},
+                ],
+                temperature=0.4,
+                max_tokens=500,
+            )
+            if result.used and result.text:
+                text = result.text.strip()
+                outcome = ""
+                if dice_result:
+                    outcome = f"The check landed as {dice_result['result']} ({dice_result['total']} vs DC {dice_result['difficulty']}). {dice_result.get('consequence', '')}"
+                if warnings:
+                    outcome = outcome + " " + " ".join(warnings) if outcome else " ".join(warnings)
+                return text, outcome.strip()
+
         first_citation = lore.citations[0] if lore.citations else "local world pack"
         note_bits = " | ".join(f"{agent}: {note}" for agent, note in zip(plan.agents, specialist_notes))
         setup = (
@@ -596,22 +633,50 @@ class LocalAgentWorkflow:
         followups: list[AgentAction] = []
         processed: set[str] = set()
         outcome = (dice_result or {}).get("result")
+        player_char = self.gm.state.player_character if hasattr(self.gm, 'state') else ""
         for member in state.get("party", []):
             name = member["agent"]
-            persona = PERSONAS.get(name)
-            if not persona or name in processed:
+            if name == player_char or name in processed:
                 continue
-            action = persona.act_followup(state, plan.intent, outcome)
-            if action:
-                processed.add(name)
-                followups.append(action)
-                if action.state_patch:
-                    self.tools.apply_patch(action.state_patch)
-                self.gm.record_trace("agent_followup", {"agent": name, "action": action.narration})
-        return [
-            {"agent": f.agent, "narration": f.narration, "dice": f.dice}
-            for f in followups
-        ]
+            processed.add(name)
+            persona = PERSONAS.get(name)
+            follow_narration = None
+            if self.llm.available:
+                prompt = (
+                    f"You are {name} ({persona.role if persona else 'member'}) "
+                    f"in a fantasy RPG party. React briefly to what just happened.\n"
+                    "Respond in one short sentence in character, as if speaking to the party.\n"
+                    f"Your name is {member.get('name', name)}.\n"
+                )
+                context = (
+                    f"Player action: {plan.action}\n"
+                    f"Current location: {state.get('location', 'unknown')}\n"
+                    f"Quest: {state.get('active_quest', 'unknown')}\n"
+                )
+                if dice_result:
+                    context += f"Just rolled: {dice_result['actor']} {dice_result['check']} -> {dice_result['result']}\n"
+                if intent := getattr(plan, 'intent', None):
+                    context += f"Party intent: {intent}\n"
+                result = self.llm.complete(
+                    messages=[
+                        {"role": "system", "content": prompt},
+                        {"role": "user", "content": context},
+                    ],
+                    temperature=0.4,
+                    max_tokens=200,
+                )
+                if result.used and result.text:
+                    follow_narration = result.text.strip()
+            if not follow_narration and persona:
+                action = persona.act_followup(state, plan.intent, outcome)
+                if action:
+                    follow_narration = action.narration
+                    if action.state_patch:
+                        self.tools.apply_patch(action.state_patch)
+            if follow_narration:
+                followups.append({"agent": name, "narration": follow_narration, "dice": None})
+                self.gm.record_trace("agent_followup", {"agent": name, "action": follow_narration})
+        return followups
 
     def pop_intro(self) -> str | None:
         text = self._pending_intro

@@ -152,7 +152,7 @@ async function fetchState(){
       party: [
         {agent:'Warrior', name: pClass === 'Warrior' ? pName : 'Thorn', health:20, max_health:20, inventory:[]},
         {agent:'Mage', name: pClass === 'Mage' ? pName : 'Elara', health:16, max_health:20, inventory:['Staff']},
-        {agent:'Rogue', name: pClass === 'Rogue' ? pName : 'Vex', health:18, max_health:20, inventory:['Dagger','Lockpicks']},
+        {agent:'Bard', name: pClass === 'Bard' ? pName : 'Seren', health:16, max_health:20, inventory:['Lute']},
         {agent:'Healer', name: pClass === 'Healer' ? pName : 'Luna', health:14, max_health:20, inventory:['Herbs']}
       ],
       world_flags: {}
