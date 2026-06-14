@@ -268,67 +268,6 @@ initGame();
   });
 })();
 
-// ── Ambient background sound ──────────────────────────────────
-(function(){
-  let ambCtx = null, started = false;
-  function startAmbient(){
-    if(started) return;
-    started = true;
-    ambCtx = new (window.AudioContext||window.webkitAudioContext)();
-    const master = ambCtx.createGain();
-    master.gain.value = 0.18;
-    master.connect(ambCtx.destination);
-
-    // Low engine drone
-    function drone(freq, vol){
-      const o = ambCtx.createOscillator();
-      const g = ambCtx.createGain();
-      o.type = 'sawtooth'; o.frequency.value = freq;
-      g.gain.value = vol;
-      const f = ambCtx.createBiquadFilter();
-      f.type = 'lowpass'; f.frequency.value = 120;
-      o.connect(f); f.connect(g); g.connect(master);
-      o.start();
-    }
-    drone(55, 0.4); drone(58, 0.2); drone(41, 0.3);
-
-    // Steam hiss (white noise bursts)
-    function hiss(){
-      const buf = ambCtx.createBuffer(1, ambCtx.sampleRate * 0.4, ambCtx.sampleRate);
-      const d = buf.getChannelData(0);
-      for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*0.15;
-      const src = ambCtx.createBufferSource();
-      src.buffer = buf;
-      const f = ambCtx.createBiquadFilter();
-      f.type = 'bandpass'; f.frequency.value = 3000; f.Q.value = 0.5;
-      const g = ambCtx.createGain();
-      g.gain.setValueAtTime(0, ambCtx.currentTime);
-      g.gain.linearRampToValueAtTime(0.6, ambCtx.currentTime+0.05);
-      g.gain.linearRampToValueAtTime(0, ambCtx.currentTime+0.4);
-      src.connect(f); f.connect(g); g.connect(master);
-      src.start();
-      setTimeout(hiss, 4000 + Math.random()*8000);
-    }
-    setTimeout(hiss, 2000);
-
-    // Distant clank
-    function clank(){
-      const o = ambCtx.createOscillator();
-      const g = ambCtx.createGain();
-      o.type = 'square'; o.frequency.value = 180 + Math.random()*60;
-      g.gain.setValueAtTime(0.3, ambCtx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ambCtx.currentTime+0.3);
-      o.connect(g); g.connect(master);
-      o.start(); o.stop(ambCtx.currentTime+0.3);
-      setTimeout(clank, 6000 + Math.random()*12000);
-    }
-    setTimeout(clank, 3000);
-  }
-  // Start on first user interaction
-  document.addEventListener('click', startAmbient, {once:true});
-  document.addEventListener('keydown', startAmbient, {once:true});
-})();
-
 // ── Retro sounds (Web Audio API) ──────────────────────────────
 const _sfx = (function(){
   let ctx = null;
