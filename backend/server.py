@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from src.agent_workflow import LocalAgentWorkflow
 from src.game_manager import GameManager
 from src.state import GameState, PartyMember
-from src.tools import LocalLoreRetriever
+from src.retrieval import build_lore_retriever
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
@@ -29,15 +29,16 @@ DEFAULT_STATE = GameState(
     location="Whispering Woods",
     active_quest="Find the ancient artifact",
     party=[
-        PartyMember(agent="Warrior", name="Thorn", health=20),
-        PartyMember(agent="Mage", name="Elara", health=16, inventory=["Staff"]),
-        PartyMember(agent="Rogue", name="Vex", health=18, inventory=["Dagger", "Lockpicks"]),
-        PartyMember(agent="Healer", name="Luna", health=14, inventory=["Herbs"]),
+        PartyMember(agent="Warrior", name="Jax", health=20),
+        PartyMember(agent="Mage", name="Lyra", health=16, inventory=["Staff"]),
+        PartyMember(agent="Healer", name="Bram", health=18, inventory=["Medkit"]),
+        PartyMember(agent="Rival", name="Kael", health=20, inventory=["Hidden Blade"]),
     ],
+    player_character="Warrior",
 )
 
 gm = GameManager(state=GameState.from_dict(DEFAULT_STATE.to_dict()))
-workflow = LocalAgentWorkflow(gm, lore_retriever=LocalLoreRetriever(BASE_DIR / "world_pack"))
+workflow = LocalAgentWorkflow(gm, lore_retriever=build_lore_retriever())
 
 
 class ResetRequest(BaseModel):
@@ -45,12 +46,13 @@ class ResetRequest(BaseModel):
     location: str = "Whispering Woods"
     active_quest: str = "Find the ancient artifact"
     party: list[dict] = [
-        {"agent": "Warrior", "name": "Thorn", "health": 20, "max_health": 20, "inventory": []},
-        {"agent": "Mage", "name": "Elara", "health": 16, "max_health": 20, "inventory": ["Staff"]},
-        {"agent": "Rogue", "name": "Vex", "health": 18, "max_health": 20, "inventory": ["Dagger", "Lockpicks"]},
-        {"agent": "Healer", "name": "Luna", "health": 14, "max_health": 20, "inventory": ["Herbs"]},
+        {"agent": "Warrior", "name": "Jax", "health": 20, "max_health": 20, "inventory": []},
+        {"agent": "Mage", "name": "Lyra", "health": 16, "max_health": 20, "inventory": ["Staff"]},
+        {"agent": "Healer", "name": "Bram", "health": 18, "max_health": 20, "inventory": ["Medkit"]},
+        {"agent": "Rival", "name": "Kael", "health": 20, "max_health": 20, "inventory": ["Hidden Blade"]},
     ]
     world_flags: dict[str, bool | str] = {}
+    player_character: str = "Warrior"
 
 
 class RollRequest(BaseModel):
@@ -80,7 +82,7 @@ app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 @app.get("/character-types")
 def character_types():
-    return ["Warrior", "Mage", "Rogue", "Healer"]
+    return ["Warrior", "Mage", "Healer"]  # Rival (Kael) is AI-only, never player-pickable
 
 
 @app.get("/")
@@ -155,7 +157,8 @@ def reset_game(body: ResetRequest):
             active_quest=body.active_quest,
             party=party,
             world_flags=dict(body.world_flags),
+            player_character=body.player_character,
         )
     )
-    workflow = LocalAgentWorkflow(gm, lore_retriever=LocalLoreRetriever(BASE_DIR / "world_pack"))
+    workflow = LocalAgentWorkflow(gm, lore_retriever=build_lore_retriever())
     return {"status": "ok", "state": gm.get_state()}

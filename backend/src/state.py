@@ -27,6 +27,7 @@ class GameState:
     active_quest: str = ""
     party: list[PartyMember] = field(default_factory=list)
     world_flags: dict[str, bool | str] = field(default_factory=dict)
+    player_character: str = ""  # agent name of the human-controlled character (never "Rival")
 
     def to_dict(self) -> dict:
         return {
@@ -35,6 +36,7 @@ class GameState:
             "active_quest": self.active_quest,
             "party": [m.to_dict() for m in self.party],
             "world_flags": dict(self.world_flags),
+            "player_character": self.player_character,
         }
 
     @classmethod
@@ -46,6 +48,7 @@ class GameState:
             active_quest=data.get("active_quest", ""),
             party=party,
             world_flags=dict(data.get("world_flags", {})),
+            player_character=data.get("player_character", ""),
         )
 
     def get_party_member(self, agent: str) -> Optional[PartyMember]:

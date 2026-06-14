@@ -52,11 +52,16 @@ The world pack files are **never** passed through the frontend or backend at run
 
 ### Agents
 - **Game Master** — orchestrator. Intent classification, agent routing, tool sequencing, conflict resolution, narration, state updates. Owns the reasoning trace.
-- **Warrior** — combat, defense, strength/intimidation checks.
-- **Mage** — interprets magic/runes/artifacts; pulls arcane lore from Foundry IQ.
-- **Rogue** — scouting, traps, stealth/lockpicking; recalls secrets from state.
-- **Healer** — party health, morale, negotiation/ethical options, cultural lore.
-- **Rival** — recurring ally-or-antagonist driven by player choices; its secret motive is GM-only.
+- **Warrior (Jax)** — combat, defense, strength/intimidation checks. Player-pickable.
+- **Mage (Lyra)** — interprets magic/runes/artifacts; pulls arcane lore from Foundry IQ. Player-pickable.
+- **Healer (Bram)** — party health, morale, negotiation/ethical options, cultural lore. Player-pickable.
+- **Rival (Kael)** — AI-controlled only. NEVER player-pickable. Secret villain whose true motive is stored in `kb-gm-secrets` (GM-only). The GM uses the secret KB to drive Kael's subtle sabotage without revealing the betrayal to the player.
+
+### Character selection (LOCKED — Option A)
+The player picks from: Warrior (Jax), Mage (Lyra), Healer (Bram). Kael is always AI-controlled.
+- `GameState.player_character` holds the agent name of the human's character so the GM never auto-plays it.
+- `/character-types` returns `["Warrior", "Mage", "Healer"]` -- Rival is excluded.
+- The GM queries `kb-gm-secrets` (scope="gm") to reason about Kael internally; that content is never surfaced to the player.
 
 ---
 
