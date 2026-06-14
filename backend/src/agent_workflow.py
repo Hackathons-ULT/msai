@@ -299,7 +299,7 @@ class LocalAgentWorkflow:
                 {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
             ],
             temperature=0.1,
-            max_tokens=400,
+            max_tokens=1200,
             json_mode=True,
         )
         if not result.used or not result.text:
@@ -677,7 +677,7 @@ class LocalAgentWorkflow:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.5,
-            max_tokens=400,
+            max_tokens=600,
         )
 
         if not result.used or not result.text:
@@ -773,7 +773,7 @@ class LocalAgentWorkflow:
                         {"role": "user", "content": context},
                     ],
                     temperature=0.4,
-                    max_tokens=200,
+                    max_tokens=350,
                 )
                 if result.used and result.text:
                     follow_narration = result.text.strip()
