@@ -183,16 +183,16 @@ class HealerPersona(BasePersona):
 
 class BardPersona(BasePersona):
     name = "Bard"
-    role = "inspire"
+    role = "performance"
 
     def observe(self, action: str, lore_snippet: str) -> AgentPerspective:
         lowered = action.lower()
-        if any(k in lowered for k in ("persuade", "talk", "negotiate", "sing", "perform", "charm")):
-            thought = "Words can open doors that blades cannot."
-            suggestion = "Use the moment — a well-placed story or song shifts the mood entirely."
+        if any(k in lowered for k in ("sing", "play", "perform", "inspire", "charm", "persuade")):
+            thought = "A moment for art and influence — the right word or note changes everything."
+            suggestion = "Use performance to sway allies or unsettle opponents."
         else:
-            thought = "Every scene has a narrative angle worth exploiting."
-            suggestion = "Read the room and find what the others are missing."
+            thought = "Every scene has a rhythm. Find it and use it."
+            suggestion = "Watch for opportunities to inspire or deceive."
         return AgentPerspective(self.name, self.role, thought, suggestion)
 
 

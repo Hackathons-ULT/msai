@@ -1,12 +1,12 @@
 const API_BASE = 'http://localhost:8000';
-const DEFAULT_CLASSES = ['Warrior', 'Mage', 'Rogue', 'Healer'];
+const DEFAULT_CLASSES = ['Warrior', 'Mage', 'Healer', 'Bard'];
 const MAX_PARTY = 4;
 
 const CLASS_META = {
   Warrior:{ico:'\u2694',desc:'Brute strength & steel'},
   Mage:{ico:'\u2726',desc:'Arcane wisdom & power'},
-  Rogue:{ico:'\u25C8',desc:'Stealth & cunning'},
-  Healer:{ico:'\u271A',desc:'Restoration & support'}
+  Healer:{ico:'\u271A',desc:'Restoration & support'},
+  Bard:{ico:'\u266B',desc:'Performance & wit'}
 };
 
 async function apiPost(endpoint, body){
@@ -125,8 +125,8 @@ document.getElementById('startBtn').onclick = async () => {
   const location = selectedCampaign?.location || 'Whispering Woods';
   const quest = selectedCampaign?.active_quest || 'A new adventure';
 
-  const defaultNames = {Warrior:'Thorn', Mage:'Elara', Rogue:'Vex', Healer:'Luna'};
-  const defaultInv = {Warrior:[], Mage:['Staff'], Rogue:['Dagger','Lockpicks'], Healer:['Herbs']};
+  const defaultNames = {Warrior:'Jax', Mage:'Lyra', Healer:'Bram', Bard:'Seren'};
+  const defaultInv = {Warrior:[], Mage:['Staff'], Healer:['Medkit'], Bard:['Lute']};
   const allSelected = [myClass, ...allyClasses];
   const party = allSelected.map(agent => ({
     agent,
