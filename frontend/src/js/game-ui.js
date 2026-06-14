@@ -13,10 +13,12 @@ function renderParty(){
       '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(isRivalStats ? '???' : (m[s]??10))+'</td></tr>'
     ).join('');
     const isRival = key === 'rival';
+    const isRevealed = isRival && gameState.world_flags && gameState.world_flags.kael_revealed;
     const cardCls = 'agent-card'+(isLit?' lit':'')+(isRival?' rival-card':'');
-    const statusLabel = isRival ? '??? unknown' : (isLit ? '* active' : '- standby');
-    const lblName = isRival ? '???' : m.name;
-    html += '<div class="'+cardCls+'" data-role="'+m.agent+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+m.agent.toUpperCase()+'<span>'+lblName+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
+    const displayName = m.name.toUpperCase();
+    const displayRole = isRival ? (isRevealed ? 'RIVAL' : 'SMUGGLER') : m.agent.toUpperCase();
+    const statusLabel = isRival ? (isRevealed ? '! exposed' : '- unknown') : (isLit ? '* active' : '- standby');
+    html += '<div class="'+cardCls+'" data-role="'+m.agent+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
   });
   agentView.innerHTML = html;
   updateHUD();

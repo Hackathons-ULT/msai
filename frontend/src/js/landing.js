@@ -23,7 +23,7 @@ async function loadClasses(){
     if(r.ok) {
       const data = await r.json();
       availableClasses = data.map(c => c.name);
-      classMeta = Object.fromEntries(data.map(c => [c.name, {ico: c.ico, desc: c.desc}]));
+      classMeta = Object.fromEntries(data.map(c => [c.name, {ico: c.ico, desc: c.desc, lore: c.lore||''}]));
     }
   } catch {}
   renderClasses();
@@ -54,7 +54,7 @@ function renderClasses(){
     let badge = '';
     if(myClass === cls) badge = '<span class="c-badge you-badge">YOU</span>';
     else if(allyClasses.includes(cls)) badge = '<span class="c-badge ally-badge">ALLY</span>';
-    card.innerHTML = `<span class="ico">${meta.ico}</span><span class="cname">${cls.toUpperCase()}</span><span class="cdesc">${meta.desc}</span>${badge}`;
+    card.innerHTML = `<span class="ico">${meta.ico}</span><span class="cname">${cls.toUpperCase()}</span><span class="cdesc">${meta.desc}</span>${meta.lore ? `<span class="clore">${meta.lore}</span>` : ''}${badge}`;
     card.onclick = () => handleClassClick(cls);
     grid.appendChild(card);
   });

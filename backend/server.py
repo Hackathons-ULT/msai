@@ -86,10 +86,10 @@ app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 @app.get("/character-types")
 def character_types():
     return [
-        {"name": "Warrior", "ico": "\u2694", "desc": "Brute strength & steel"},
-        {"name": "Mage", "ico": "\u2726", "desc": "Arcane wisdom & power"},
-        {"name": "Healer", "ico": "\u271A", "desc": "Restoration & support"},
-        {"name": "Bard", "ico": "\u266B", "desc": "Music & inspiration"},
+        {"name": "Warrior", "ico": "[X]", "desc": "Brute strength & steel", "lore": "Jax is a former factory enforcer who grew up in the Sump. Iron-willed and direct. Best for combat, forcing doors, and head-on confrontations. High STR and CON."},
+        {"name": "Mage", "ico": "[*]", "desc": "Arcane wisdom & power", "lore": "Lyra is a self-taught scholar studying the corrupted aether flowing through Aethelgard. Best for deciphering runes, investigating anomalies, and arcane problem-solving. High INT and WIS."},
+        {"name": "Healer", "ico": "[+]", "desc": "Restoration & support", "lore": "Bram is a field medic who defected from the Engineers' medical corps. Best for keeping the party alive, negotiating peacefully, and navigating moral dilemmas. High WIS and CHA."},
+        {"name": "Bard", "ico": "[~]", "desc": "Music & inspiration", "lore": "Seren is a wandering minstrel who uses charm and verse to move through dangerous crowds. Best for persuasion, information-gathering, and social manipulation. High CHA and DEX."},
     ]  # Rival (Kael) is AI-only, never player-pickable
 
 
