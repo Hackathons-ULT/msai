@@ -235,6 +235,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .dh-result{font-size:clamp(6px,0.6vw,9px);}
 .dh-con{font-size:clamp(4px,0.45vw,6px);color:#6a5030;line-height:1.6;}
 
+/* Lore entries */
+.lore-entry{margin-bottom:14px;line-height:1.9;}
+.lore-title{color:#c8922a;margin-bottom:4px;letter-spacing:1px;}
+.lore-sep{color:#4a3818;font-size:0.85em;margin:10px 0 8px;border-top:1px solid #3a2810;padding-top:8px;letter-spacing:1px;}
+.lore-locked{opacity:0.4;}
+.lore-locked .lore-title{color:#6a5030;}
+.lore-hint{font-size:0.85em;color:#5a4828;font-style:italic;}
+
 /* Map view */
 .map-frame{font-size:clamp(5px,0.5vw,8px);color:#8a6a3a;line-height:1.4;margin-bottom:8px;white-space:pre;}
 .map-row{font-size:clamp(6px,0.6vw,9px);color:#a09070;padding:clamp(3px,0.3vw,6px) clamp(6px,0.6vw,10px);border-bottom:1px solid #5a4020;line-height:1.6;}

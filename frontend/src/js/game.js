@@ -44,11 +44,16 @@ const unlockedLore = new Set(['aethelgard','the_sump','clockwork_plague']);
 function renderLore(){
   const loreEl = document.getElementById('loreBody');
   if(!loreEl) return;
-  const html = Object.entries(LORE_ENTRIES)
-    .filter(([k])=>unlockedLore.has(k))
-    .map(([,e])=>'<b>'+e.title+'</b><br>'+e.body)
-    .join('<br><br>');
-  loreEl.innerHTML = html || 'The world awaits discovery.';
+  const entries = Object.entries(LORE_ENTRIES);
+  const unlockedHtml = entries.filter(([k])=>unlockedLore.has(k))
+    .map(([,e])=>'<div class="lore-entry"><div class="lore-title">'+e.title+'</div>'+e.body+'</div>')
+    .join('');
+  const locked = entries.filter(([k])=>!unlockedLore.has(k));
+  const lockedHtml = locked.length
+    ? '<div class="lore-sep">-- '+locked.length+' entr'+(locked.length===1?'y':'ies')+' undiscovered --</div>'
+      + locked.map(()=>'<div class="lore-entry lore-locked"><div class="lore-title">[ ??? ]</div><span class="lore-hint">Explore Aethelgard to unlock this entry.</span></div>').join('')
+    : '';
+  loreEl.innerHTML = unlockedHtml + lockedHtml || 'The world awaits discovery.';
 }
 
 function scanForLore(text){
@@ -62,27 +67,77 @@ function scanForLore(text){
 }
 
 // --- Map ---
-const DISTRICTS = [
-  {key:'upper-spire',label:'UPPER-SPIRE',desc:'Engineers domain - sealed towers above the smog'},
-  {key:'zenith wards',label:'ZENITH WARDS',desc:'Guild halls and filtered-air housing'},
-  {key:'glass arch',label:'GLASS ARCH',desc:'Aether-lit trade hub and info brokers'},
-  {key:'sunken market',label:'SUNKEN MARKET',desc:'Flooded lower markets, salvage traders'},
-  {key:'the sump',label:'THE SUMP',desc:'Industrial slums, choking smog, the plague epicentre'},
-  {key:'undergrid',label:'UNDERGRID',desc:'Maintenance tunnels deep below the city'},
+const MAP_DISTRICTS = [
+  {id:'upper-spire',  label:'UPPER-SPIRE',    tag:'ENGINEERS',    col:'#c090d8', dark:'#1a0828', icon:'^^^', note:'Sealed towers above the smog. Access tightly controlled.'},
+  {id:'zenith wards', label:'ZENITH WARDS',   tag:'GUILD HALLS',  col:'#6ea8d0', dark:'#0a1828', icon:'[H]', note:'Filtered air. Guild halls and upper-class housing.'},
+  {id:'glass arch',   label:'GLASS ARCH',     tag:'TRADE HUB',    col:'#44c898', dark:'#082820', icon:'/ \\', note:'Aether-lit markets and black-market info brokers.'},
+  {id:'sunken market',label:'SUNKEN MARKET',  tag:'FLOODED ZONE', col:'#c89050', dark:'#281808', icon:'~~~', note:'Partially flooded. Salvagers and swampfolk trade here.'},
+  {id:'the sump',     label:'THE SUMP',        tag:'PLAGUE ZONE',  col:'#cc4422', dark:'#220808', icon:'###', note:'Industrial slums. Choking smog. The plague started here.'},
+  {id:'undergrid',    label:'UNDERGRID',       tag:'UNDERGROUND',  col:'#5a4030', dark:'#080806', icon:':::', note:'Maintenance tunnels deep below the city. Few return.'},
 ];
 
 function renderMap(){
   const mapEl = document.getElementById('mapBody');
   if(!mapEl) return;
   const loc = ((gameState && gameState.location) || '').toLowerCase();
-  const rows = DISTRICTS.map((d,i)=>{
-    const active = loc.includes(d.key);
-    const arrow = active ? '&gt;&gt;' : '  ';
-    const cls = active ? 'map-row map-active' : 'map-row';
-    return '<div class="'+cls+'">'+arrow+' <b>'+d.label+'</b><span class="map-desc"> - '+d.desc+'</span></div>';
-  }).join('');
-  const legend = '<div class="map-note">&gt;&gt; = current location</div>';
-  mapEl.innerHTML = '<pre class="map-frame">+-----------------------------+\n| AETHELGARD - CITY DISTRICTS |\n+-----------------------------+</pre>'+rows+legend;
+  const activeIdx = MAP_DISTRICTS.findIndex(d => loc.includes(d.id));
+
+  const W = 460, dH = 78, gap = 4, y0 = 36, liftX = 406;
+  const totalH = y0 + MAP_DISTRICTS.length * (dH + gap) + 36;
+
+  let svg = `<svg viewBox="0 0 ${W} ${totalH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  <defs>
+    <style>.mp{animation:mpulse 2s ease-in-out infinite}@keyframes mpulse{0%,100%{opacity:1}50%{opacity:0.45}}</style>
+    <filter id="mg"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <pattern id="hx" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#2a1c0c" stroke-width="1.5"/>
+    </pattern>
+  </defs>
+  <rect width="${W}" height="${totalH}" fill="#0c0a06"/>
+  <rect width="${W}" height="28" fill="#141008"/>
+  <text x="${W/2}" y="18" text-anchor="middle" fill="#6a5030" font-size="8" font-family="monospace" letter-spacing="3">[ AETHELGARD - CITY CROSS-SECTION ]</text>
+  <rect x="${liftX}" y="${y0}" width="18" height="${MAP_DISTRICTS.length*(dH+gap)-gap}" fill="#0e0c08" stroke="#2a1e0c" stroke-width="1"/>
+  <text x="${liftX+9}" y="${y0-5}" text-anchor="middle" fill="#2a1e0c" font-size="6" font-family="monospace">LIFT</text>`;
+
+  MAP_DISTRICTS.forEach((d,i)=>{
+    const y = y0 + i*(dH+gap);
+    const w = liftX - 6;
+    const isActive = i === activeIdx;
+    const op = (activeIdx >= 0 && i > activeIdx) ? 0.38 : 1;
+
+    if(i === MAP_DISTRICTS.length-1){
+      svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="${d.dark}" opacity="${op}"/>`;
+      svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="url(#hx)" opacity="${op*0.5}"/>`;
+    } else {
+      svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="${d.dark}" opacity="${op}"/>`;
+    }
+    if(isActive){
+      svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="${d.col}" opacity="0.1" filter="url(#mg)"/>`;
+      svg += `<rect x="0" y="${y}" width="5" height="${dH}" fill="${d.col}"/>`;
+    }
+    svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="none" stroke="${d.col}" stroke-width="${isActive?2:0.7}" opacity="${op}"/>`;
+    svg += `<text x="14" y="${y+28}" fill="${d.col}" font-size="11" font-family="monospace" opacity="${op}">${d.icon}</text>`;
+    svg += `<text x="52" y="${y+24}" fill="${isActive?d.col:'#a09070'}" font-size="${isActive?11:9}" font-family="monospace" letter-spacing="1" opacity="${op}">${d.label}</text>`;
+    svg += `<text x="${w-6}" y="${y+24}" text-anchor="end" fill="${d.col}" font-size="6.5" font-family="monospace" opacity="${op*0.55}">${d.tag}</text>`;
+    const note = d.note.length > 54 ? d.note.substring(0,54)+'...' : d.note;
+    svg += `<text x="12" y="${y+44}" fill="#7a6040" font-size="7.5" font-family="monospace" opacity="${op}">${note}</text>`;
+    if(isActive){
+      svg += `<text x="${w-6}" y="${y+dH-9}" text-anchor="end" fill="${d.col}" font-size="8" font-family="monospace" class="mp">&gt;&gt; YOU ARE HERE</text>`;
+    }
+    // steam puffs above The Sump
+    if(d.id==='the sump'){
+      [80,160,240,310].forEach(sx=>{
+        svg += `<ellipse cx="${sx}" cy="${y-7}" rx="14" ry="5" fill="${d.col}" opacity="0.1"/>`;
+      });
+    }
+    const ly = y + dH/2;
+    svg += `<line x1="${w}" y1="${ly}" x2="${liftX}" y2="${ly}" stroke="${d.col}" stroke-width="${isActive?1.5:0.5}" stroke-dasharray="${isActive?'none':'4,3'}" opacity="${op}"/>`;
+    svg += `<circle cx="${liftX+9}" cy="${ly}" r="${isActive?6:3.5}" fill="${isActive?d.col:'#141008'}" stroke="${d.col}" stroke-width="${isActive?1.5:0.8}" opacity="${op}"/>`;
+  });
+
+  svg += `<text x="8" y="${totalH-8}" fill="#3a2c10" font-size="6.5" font-family="monospace">Active = current location  |  Dim = not yet reached</text>`;
+  svg += `</svg>`;
+  mapEl.innerHTML = svg;
 }
 
 function pushDialogue(speaker, text){
@@ -178,9 +233,22 @@ async function sendAct(){
   if(!val) return;
   pInput.value = '';
 
-  if(val.toLowerCase() === 'help'){
-    narrText.innerHTML = HELP_TEXT + '<span class="cursor"></span>';
-    pushDialogue('GM', 'HELP: see UI for commands and tips.');
+  if(val.toLowerCase() === 'help' || val === '/help'){
+    narrText.innerHTML = HELP_TEXT + '<br><br><b>SLASH COMMANDS:</b><br>/lore - open world lore panel<br>/map - open city map<br>/party - view party stats<br>/recap - session history<br>/trace - AI reasoning chain<br>/status - show current HP and quest<span class="cursor"></span>';
+    pushDialogue('GM', 'HELP: commands and tips shown.');
+    return;
+  }
+  if(val === '/lore'){ setStage('lore'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened WORLD LORE ]</em><span class="cursor"></span>'; return; }
+  if(val === '/map'){ setStage('map'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened MAP ]</em><span class="cursor"></span>'; return; }
+  if(val === '/party'){ setStage('agents'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened PARTY ]</em><span class="cursor"></span>'; return; }
+  if(val === '/recap'){ setStage('recap'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened RECAP ]</em><span class="cursor"></span>'; return; }
+  if(val === '/trace'){ setStage('trace'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened TRACE ]</em><span class="cursor"></span>'; return; }
+  if(val === '/status'){
+    if(gameState){
+      const hp = (gameState.party||[]).reduce((s,m)=>s+m.health,0);
+      const maxHp = (gameState.party||[]).reduce((s,m)=>s+m.max_health,0);
+      narrText.innerHTML = '<b>STATUS</b><br>Location: '+(gameState.location||'?')+'<br>Quest: '+(gameState.active_quest||'?')+'<br>Party HP: '+hp+'/'+maxHp+'<span class="cursor"></span>';
+    }
     return;
   }
 
