@@ -58,6 +58,7 @@ function updateHUD(){
   const locEl = document.getElementById('turnLoc');
   if(locEl) locEl.textContent = (gameState.location || '?').toUpperCase();
   turnText.textContent = gameState.active_quest || '?';
+  if(gameState.location && typeof discoveredLocations !== 'undefined') discoveredLocations.add(gameState.location.toLowerCase());
   renderRecap();
   if(typeof renderObjectives === 'function') renderObjectives();
   if(typeof checkEndConditions === 'function') checkEndConditions();

@@ -67,119 +67,151 @@ function scanForLore(text){
 }
 
 // --- Map ---
-const MAP_DISTRICTS = [
-  {id:'upper-spire',  label:'UPPER-SPIRE',    tag:'ENGINEERS',    col:'#c090d8', dark:'#1a0828', icon:'^^^', note:'Sealed towers above the smog. Access tightly controlled.'},
-  {id:'zenith wards', label:'ZENITH WARDS',   tag:'GUILD HALLS',  col:'#6ea8d0', dark:'#0a1828', icon:'[H]', note:'Filtered air. Guild halls and upper-class housing.'},
-  {id:'glass arch',   label:'GLASS ARCH',     tag:'TRADE HUB',    col:'#44c898', dark:'#082820', icon:'/ \\', note:'Aether-lit markets and black-market info brokers.'},
-  {id:'sunken market',label:'SUNKEN MARKET',  tag:'FLOODED ZONE', col:'#c89050', dark:'#281808', icon:'~~~', note:'Partially flooded. Salvagers and swampfolk trade here.'},
-  {id:'the sump',     label:'THE SUMP',        tag:'PLAGUE ZONE',  col:'#cc4422', dark:'#220808', icon:'###', note:'Industrial slums. Choking smog. The plague started here.'},
-  {id:'undergrid',    label:'UNDERGRID',       tag:'UNDERGROUND',  col:'#5a4030', dark:'#080806', icon:':::', note:'Maintenance tunnels deep below the city. Few return.'},
-];
+const discoveredLocations = new Set(['the sump']);
 
+const _MAP_DISTRICTS = {
+  'upper-spire':   { name:'UPPER-SPIRE',   desc:"Engineers' domain. Crystal-powered spires above the smog." },
+  'zenith-wards':  { name:'ZENITH WARDS',  desc:'Guild halls and the wealthy wards. Filtered air.' },
+  'glass-arch':    { name:'GLASS ARCH',    desc:'Trade hub. The green arched bridge between districts.' },
+  'sunken-market': { name:'SUNKEN MARKET', desc:'Flooded stalls. Salvagers and swampfolk trade here.' },
+  'the-sump':      { name:'THE SUMP',      desc:'Industrial base. Plague epicentre. The city\'s lowest inhabited level.' },
+  'undergrid':     { name:'UNDERGRID',     desc:'Deep maintenance tunnels beneath the city. Few return.' },
+};
+
+function _mapKeyFor(s){
+  if(!s) return null;
+  const t = String(s).toLowerCase().trim();
+  const m = {'the sump':'the-sump','sump':'the-sump','glass arch':'glass-arch','the glass arch':'glass-arch',
+    'upper-spire':'upper-spire','upper spire':'upper-spire','zenith wards':'zenith-wards','zenith':'zenith-wards',
+    'sunken market':'sunken-market','undergrid':'undergrid','the undergrid':'undergrid'};
+  return m[t] || t.replace(/\s+/g,'-');
+}
+
+const _MAP_SVG = `<svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:320px;display:block;">
+  <defs>
+    <filter id="ael-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="520" height="320" fill="#0a0806"/>
+  <g fill="#cfc8a8">
+    <circle cx="40" cy="16" r="1.2"/><circle cx="95" cy="10" r="1"/><circle cx="150" cy="20" r="1.4"/>
+    <circle cx="210" cy="12" r="1"/><circle cx="265" cy="22" r="1.2"/><circle cx="320" cy="9" r="1.3"/>
+    <circle cx="360" cy="18" r="1"/><circle cx="70" cy="28" r="1"/><circle cx="290" cy="30" r="1"/>
+    <circle cx="180" cy="32" r="1.1"/><circle cx="120" cy="38" r="1"/><circle cx="340" cy="34" r="1.2"/>
+  </g>
+  <g class="ael-district" data-key="upper-spire">
+    <rect class="d-accent" x="27" y="46" width="3" height="40" fill="#9a7bd6"/>
+    <rect class="d-fill d-border" x="30" y="46" width="330" height="40" fill="#1c1630" stroke="#9a7bd6" stroke-width="1.5" rx="2"/>
+    <g class="d-detail" fill="#3a2e5c" stroke="#9a7bd6" stroke-width="0.6">
+      <path d="M70 84 L82 54 L94 84 Z"/><path d="M150 84 L165 50 L180 84 Z"/>
+      <path d="M250 84 L262 56 L274 84 Z"/><path d="M310 84 L322 52 L334 84 Z"/>
+    </g>
+    <text class="d-label" x="40" y="70" fill="#e8e2d0" font-size="8" font-family="monospace">UPPER-SPIRE</text>
+    <text class="ael-here ael-here-hidden" x="200" y="70" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+  </g>
+  <g class="ael-district" data-key="zenith-wards">
+    <rect class="d-accent" x="27" y="90" width="3" height="40" fill="#4f9fe0"/>
+    <rect class="d-fill d-border" x="30" y="90" width="330" height="40" fill="#10202e" stroke="#4f9fe0" stroke-width="1.5" rx="2"/>
+    <g class="d-detail" fill="#1d4663" stroke="#4f9fe0" stroke-width="0.5">
+      <rect x="70" y="100" width="14" height="22"/><rect x="92" y="100" width="14" height="22"/>
+      <rect x="114" y="100" width="14" height="22"/><rect x="250" y="100" width="14" height="22"/>
+      <rect x="272" y="100" width="14" height="22"/><rect x="294" y="100" width="14" height="22"/>
+    </g>
+    <text class="d-label" x="40" y="114" fill="#e8e2d0" font-size="8" font-family="monospace">ZENITH WARDS</text>
+    <text class="ael-here ael-here-hidden" x="200" y="114" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+  </g>
+  <g class="ael-district" data-key="glass-arch">
+    <rect class="d-accent" x="27" y="134" width="3" height="40" fill="#3ecb8f"/>
+    <rect class="d-fill d-border" x="30" y="134" width="330" height="40" fill="#0d2a22" stroke="#3ecb8f" stroke-width="1.5" rx="2"/>
+    <path class="d-detail" d="M70 168 Q120 138 170 168" fill="none" stroke="#3ecb8f" stroke-width="2"/>
+    <path class="d-detail" d="M210 168 Q260 138 310 168" fill="none" stroke="#3ecb8f" stroke-width="2"/>
+    <text class="d-label" x="40" y="158" fill="#e8e2d0" font-size="8" font-family="monospace">GLASS ARCH</text>
+    <text class="ael-here ael-here-hidden" x="200" y="158" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+  </g>
+  <g class="ael-district" data-key="sunken-market">
+    <rect class="d-accent" x="27" y="178" width="3" height="40" fill="#46b5c8"/>
+    <rect class="d-fill d-border" x="30" y="178" width="330" height="40" fill="#0c2530" stroke="#46b5c8" stroke-width="1.5" rx="2"/>
+    <g class="d-detail" stroke="#46b5c8" stroke-width="1" fill="none">
+      <path d="M60 210 q10 -8 20 0 t20 0 t20 0 t20 0"/>
+      <rect x="200" y="196" width="18" height="16" fill="#1a4654" stroke="#46b5c8" stroke-width="0.6"/>
+      <rect x="226" y="196" width="18" height="16" fill="#1a4654" stroke="#46b5c8" stroke-width="0.6"/>
+      <rect x="252" y="196" width="18" height="16" fill="#1a4654" stroke="#46b5c8" stroke-width="0.6"/>
+    </g>
+    <text class="d-label" x="40" y="202" fill="#e8e2d0" font-size="8" font-family="monospace">SUNKEN MARKET</text>
+    <text class="ael-here ael-here-hidden" x="200" y="202" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+  </g>
+  <g class="ael-district" data-key="the-sump">
+    <rect class="d-accent" x="27" y="222" width="3" height="40" fill="#e2554a"/>
+    <rect class="d-fill d-border" x="30" y="222" width="330" height="40" fill="#2e120f" stroke="#e2554a" stroke-width="1.5" rx="2"/>
+    <g class="d-detail" fill="#5c211b" stroke="#e2554a" stroke-width="0.6">
+      <rect x="70" y="234" width="10" height="24"/><rect x="86" y="240" width="10" height="18"/>
+      <rect x="260" y="234" width="10" height="24"/><rect x="276" y="240" width="10" height="18"/>
+      <circle cx="160" cy="244" r="6" fill="none"/><circle cx="178" cy="248" r="4" fill="none"/>
+    </g>
+    <text class="d-label" x="40" y="246" fill="#e8e2d0" font-size="8" font-family="monospace">THE SUMP</text>
+    <text class="ael-here ael-here-hidden" x="200" y="246" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+  </g>
+  <g class="ael-district" data-key="undergrid">
+    <rect class="d-accent" x="27" y="266" width="3" height="40" fill="#c8a14f"/>
+    <rect class="d-fill d-border" x="30" y="266" width="330" height="40" fill="#241c0c" stroke="#c8a14f" stroke-width="1.5" rx="2"/>
+    <g class="d-detail" fill="none" stroke="#c8a14f" stroke-width="1">
+      <ellipse cx="80" cy="286" rx="12" ry="9"/><ellipse cx="160" cy="286" rx="12" ry="9"/>
+      <ellipse cx="300" cy="286" rx="12" ry="9"/>
+    </g>
+    <text class="d-label" x="40" y="290" fill="#e8e2d0" font-size="8" font-family="monospace">UNDERGRID</text>
+    <text class="ael-here ael-here-hidden" x="200" y="290" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+  </g>
+  <g>
+    <rect x="372" y="46" width="138" height="240" fill="#13100c" stroke="#3a3424" stroke-width="1" rx="3"/>
+    <text x="382" y="64" fill="#8a8266" font-size="7" font-family="monospace">LOCATION</text>
+    <text id="ael-panel-name" x="382" y="84" fill="#fff" font-size="9" font-family="monospace">---</text>
+    <text id="ael-panel-desc1" x="382" y="104" fill="#bdb59a" font-size="6" font-family="monospace"></text>
+    <text id="ael-panel-desc2" x="382" y="118" fill="#bdb59a" font-size="6" font-family="monospace"></text>
+    <text id="ael-panel-desc3" x="382" y="132" fill="#bdb59a" font-size="6" font-family="monospace"></text>
+  </g>
+  <text x="260" y="312" text-anchor="middle" fill="#e8e2d0" font-size="11" font-family="monospace" letter-spacing="2">AETHELGARD</text>
+</svg>`;
+
+let _mapInjected = false;
 function renderMap(){
   const mapEl = document.getElementById('mapBody');
   if(!mapEl) return;
-  const loc = ((gameState && gameState.location) || '').toLowerCase();
-  const ia = id => loc.includes(id);
-  const W = 520, H = 320, L = 16, R = 400, CX = 208;
-
-  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;max-height:320px;display:block;">
-  <defs>
-    <style>.mp{animation:mp 2s ease-in-out infinite}@keyframes mp{0%,100%{opacity:1}50%{opacity:0.25}}</style>
-    <filter id="fg"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#060416"/><stop offset="55%" stop-color="#100808"/><stop offset="100%" stop-color="#0e0806"/></linearGradient>
-    <pattern id="hx" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#1a1008" stroke-width="1.5"/></pattern>
-    <pattern id="gr" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0L0 0 0 10" fill="none" stroke="rgba(80,60,20,0.07)" stroke-width="0.5"/></pattern>
-  </defs>
-  <rect width="${W}" height="${H}" fill="url(#bg)"/><rect width="${W}" height="${H}" fill="url(#gr)"/>`;
-
-  // Stars
-  [30,75,120,160,210,280,340,380,420,460,490].forEach((x,i)=>{ s+=`<circle cx="${x}" cy="${4+i%4*3}" r="0.7" fill="white" opacity="${0.15+i%3*0.1}"/>`; });
-
-  // Label helper
-  const lbl = (x,y,text,col,size,cls='',op=1)=> `<text x="${x}" y="${y}" fill="${col}" font-size="${size}" font-family="monospace" letter-spacing="1" ${cls?'class="'+cls+'"':''} opacity="${op}">${text}</text>`;
-  const tag = (text,col,active,y2)=> active ? lbl(R+14,y2,text,col,7,'mp') : lbl(R+14,y2,text,'#5a4828',6,'',0.6);
-  const lline = (y,col,op)=>`<line x1="${R}" y1="${y}" x2="${R+10}" y2="${y}" stroke="${col}" stroke-width="1" opacity="${op}"/>`;
-
-  // === UPPER-SPIRE (y 12-78) ===
-  const uC='#c090d8', uA=ia('upper-spire'), uOp=uA?1:0.55;
-  // base platform
-  s+=`<rect x="${L}" y="68" width="${R-L}" height="12" fill="${uA?'#220a40':'#100418'}" stroke="${uC}" stroke-width="${uA?1.5:0.7}" opacity="${uOp}"/>`;
-  // towers
-  [[CX,14,16],[CX-55,28,13],[CX+55,28,13],[CX-105,38,11],[CX+105,38,11],[CX-148,46,9],[CX+148,46,9]].forEach(([tx,ty,tw])=>{
-    s+=`<polygon points="${tx},${ty} ${tx+tw/2},68 ${tx-tw/2},68" fill="${uA?'#2a0e48':'#150820'}" stroke="${uC}" stroke-width="${uA?1.2:0.6}" opacity="${uOp}"/>`;
-    if(uA&&tw>10) s+=`<rect x="${tx-2}" y="${ty+18}" width="4" height="5" fill="${uC}" opacity="0.5"/>`;
+  if(!_mapInjected){ mapEl.innerHTML = _MAP_SVG; _mapInjected = true; }
+  const cur = _mapKeyFor(gameState && gameState.location);
+  if(cur) discoveredLocations.add(cur.replace(/-/g,' '));
+  const discovered = new Set([...discoveredLocations].map(_mapKeyFor));
+  if(cur) discovered.add(cur);
+  document.querySelectorAll('.ael-district').forEach(g => {
+    const k = g.getAttribute('data-key');
+    g.classList.remove('ael-current','ael-discovered','ael-undiscovered');
+    const here = g.querySelector('.ael-here');
+    const lbl = g.querySelector('.d-label');
+    if(k === cur){
+      g.classList.add('ael-current');
+      if(here) here.classList.remove('ael-here-hidden');
+      if(lbl) lbl.setAttribute('fill','#fff');
+    } else if(discovered.has(k)){
+      g.classList.add('ael-discovered');
+      if(here) here.classList.add('ael-here-hidden');
+      if(lbl) lbl.setAttribute('fill','#e8e2d0');
+    } else {
+      g.classList.add('ael-undiscovered');
+      if(here) here.classList.add('ael-here-hidden');
+      if(lbl){ lbl.setAttribute('fill','#3a3020'); lbl.textContent = '???'; }
+    }
   });
-  if(uA){ s+=`<rect x="${L}" y="12" width="${R-L}" height="68" fill="${uC}" opacity="0.06" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="68" width="5" height="12" fill="${uC}"/>`; }
-  s+=lbl(R+14,78,'UPPER-SPIRE',uA?uC:'#907090',uA?9:7,'',uOp);
-  s+=tag(uA?'>> YOU ARE HERE':'Engineers domain',uC,uA,88)+lline(74,uC,uOp);
-
-  // === ZENITH WARDS (y 82-118) ===
-  const zC='#6ea8d0', zA=ia('zenith wards'), zOp=zA?1:0.55;
-  s+=`<rect x="${L}" y="82" width="${R-L}" height="36" fill="${zA?'#0a1828':'#060e18'}" stroke="${zC}" stroke-width="${zA?1.5:0.7}" opacity="${zOp}"/>`;
-  [[70,22],[130,28],[200,24],[270,30],[335,22],[380,26]].forEach(([bx,bh])=>{
-    s+=`<rect x="${bx}" y="${118-bh}" width="26" height="${bh}" fill="${zA?'#0c1e30':'#060c18'}" stroke="${zC}" stroke-width="0.6" opacity="${zOp*0.9}"/>`;
-    s+=`<rect x="${bx+5}" y="${118-bh+5}" width="6" height="5" fill="${zC}" opacity="${zA?0.5:0.2}"/>`;
-    s+=`<rect x="${bx+15}" y="${118-bh+5}" width="6" height="5" fill="${zC}" opacity="${zA?0.5:0.2}"/>`;
-  });
-  if(zA){ s+=`<rect x="${L}" y="82" width="${R-L}" height="36" fill="${zC}" opacity="0.07" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="82" width="5" height="36" fill="${zC}"/>`; }
-  s+=lbl(R+14,100,'ZENITH WARDS',zA?zC:'#607090',zA?9:7,'',zOp);
-  s+=tag(zA?'>> YOU ARE HERE':'Guild halls',zC,zA,110)+lline(100,zC,zOp);
-
-  // === GLASS ARCH (y 120-148) ===
-  const gC='#44c898', gA=ia('glass arch'), gOp=gA?1:0.55;
-  s+=`<rect x="${L}" y="120" width="${R-L}" height="28" fill="${gA?'#0a2820':'#061810'}" stroke="${gC}" stroke-width="${gA?1.5:0.7}" opacity="${gOp}"/>`;
-  s+=`<path d="M ${L+18} 148 Q ${CX} 118 ${R-18} 148" fill="none" stroke="${gC}" stroke-width="${gA?2:1}" opacity="${gOp}"/>`;
-  s+=`<path d="M ${L+32} 148 Q ${CX} 126 ${R-32} 148" fill="none" stroke="${gC}" stroke-width="${gA?1:0.5}" opacity="${gOp*0.5}"/>`;
-  [[L+16,28],[R-24,28]].forEach(([px,ph])=>s+=`<rect x="${px}" y="120" width="10" height="${ph}" fill="${gA?'#0a2820':'#061810'}" stroke="${gC}" stroke-width="0.7" opacity="${gOp*0.9}"/>`);
-  if(gA){ s+=`<rect x="${L}" y="120" width="${R-L}" height="28" fill="${gC}" opacity="0.07" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="120" width="5" height="28" fill="${gC}"/>`; }
-  s+=lbl(R+14,134,'GLASS ARCH',gA?gC:'#408878',gA?9:7,'',gOp);
-  s+=tag(gA?'>> YOU ARE HERE':'Trade hub',gC,gA,144)+lline(134,gC,gOp);
-
-  // === SUNKEN MARKET (y 150-182) ===
-  const smC='#c89050', smA=ia('sunken market'), smOp=smA?1:0.6;
-  s+=`<rect x="${L}" y="150" width="${R-L}" height="32" fill="${smA?'#281808':'#160e04'}" stroke="${smC}" stroke-width="${smA?1.5:0.7}" opacity="${smOp}"/>`;
-  for(let wx=L;wx<R-10;wx+=22){ s+=`<path d="M${wx} 165 Q${wx+8} 159 ${wx+16} 165 Q${wx+20} 169 ${wx+22} 165" fill="none" stroke="${smC}" stroke-width="${smA?1:0.5}" opacity="${smOp*0.5}"/>`; }
-  if(smA){ s+=`<rect x="${L}" y="150" width="${R-L}" height="32" fill="${smC}" opacity="0.07" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="150" width="5" height="32" fill="${smC}"/>`; }
-  s+=lbl(R+14,165,'SUNKEN MARKET',smA?smC:'#907040',smA?9:7,'',smOp);
-  s+=tag(smA?'>> YOU ARE HERE':'Flooded markets',smC,smA,175)+lline(165,smC,smOp);
-
-  // === THE SUMP (y 184-245) ===
-  const tC='#cc4422', tA=ia('the sump'), tOp=tA?1:0.65;
-  s+=`<rect x="${L}" y="184" width="${R-L}" height="60" fill="${tA?'#220808':'#120404'}" stroke="${tC}" stroke-width="${tA?2:0.8}" opacity="${tOp}"/>`;
-  if(tA){ s+=`<rect x="${L}" y="184" width="${R-L}" height="60" fill="${tC}" opacity="0.1" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="184" width="5" height="60" fill="${tC}"/>`; }
-  // Pipes
-  [65,118,175,232,290,345,385].forEach((px,i)=>{
-    const ph=14+(i%3)*10;
-    s+=`<rect x="${px}" y="${184-ph}" width="9" height="${ph+4}" fill="${tA?'#2a0808':'#160404'}" stroke="${tC}" stroke-width="0.8" opacity="${tOp*0.9}"/>`;
-    s+=`<circle cx="${px+4.5}" cy="${184-ph}" r="5.5" fill="${tA?'#220606':'#100202'}" stroke="${tC}" stroke-width="0.8" opacity="${tOp*0.9}"/>`;
-    if(tA) s+=`<ellipse cx="${px+4.5}" cy="${184-ph-7}" rx="6" ry="3" fill="${tC}" opacity="0.14"/>`;
-  });
-  // Smog layer
-  [90,190,290,360].forEach(sx=>s+=`<ellipse cx="${sx}" cy="188" rx="28" ry="7" fill="${tC}" opacity="${tA?0.1:0.04}"/>`);
-  s+=lbl(R+14,208,'THE SUMP',tA?tC:'#904030',tA?9:7,'',tOp);
-  s+=tag(tA?'>> YOU ARE HERE':'Plague epicentre',tC,tA,220)+lline(208,tC,tOp);
-  if(tA) s+=lbl(26,238,'PLAGUE EPICENTRE',tC,6,'mp');
-
-  // === UNDERGRID (y 247-305) ===
-  const ugC='#6a5038', ugA=ia('undergrid'), ugOp=ugA?0.9:0.4;
-  s+=`<rect x="${L}" y="247" width="${R-L}" height="56" fill="#060604"/><rect x="${L}" y="247" width="${R-L}" height="56" fill="url(#hx)" opacity="0.55"/>`;
-  s+=`<rect x="${L}" y="247" width="${R-L}" height="56" fill="none" stroke="${ugC}" stroke-width="${ugA?1.5:0.6}" opacity="${ugOp}"/>`;
-  [[110,275,28,18],[220,275,28,18],[330,275,28,18]].forEach(([cx,cy,rx,ry])=>{
-    s+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${ugC}" stroke-width="${ugA?1:0.5}" opacity="${ugOp}"/>`;
-    s+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx-7}" ry="${ry-5}" fill="#080806"/>`;
-  });
-  if(ugA){ s+=`<rect x="${L}" y="247" width="${R-L}" height="56" fill="${ugC}" opacity="0.07" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="247" width="5" height="56" fill="${ugC}"/>`; }
-  s+=lbl(R+14,268,'UNDERGRID',ugA?ugC:'#5a4028',ugA?9:7,'',ugOp);
-  s+=tag(ugA?'>> YOU ARE HERE':'Deep tunnels',ugC,ugA,279)+lline(268,ugC,ugOp);
-
-  // Right panel divider
-  s+=`<line x1="${R+10}" y1="12" x2="${R+10}" y2="305" stroke="#2a1e0c" stroke-width="0.5"/>`;
-
-  // Bottom label
-  s+=`<text x="${CX}" y="${H-5}" text-anchor="middle" fill="#2a1e0c" font-size="6" font-family="monospace" letter-spacing="2">AETHELGARD - CITY CROSS-SECTION</text>`;
-  s+=`</svg>`;
-  mapEl.innerHTML = s;
+  const meta = _MAP_DISTRICTS[cur];
+  if(meta){
+    const n = document.getElementById('ael-panel-name');
+    if(n) n.textContent = meta.name;
+    const words = meta.desc.split(' ');
+    const lines = []; let ln = '';
+    words.forEach(w => { if((ln+' '+w).trim().length > 18){ lines.push(ln.trim()); ln=w; } else { ln=(ln+' '+w).trim(); } });
+    if(ln) lines.push(ln.trim());
+    [1,2,3].forEach(i => { const el = document.getElementById('ael-panel-desc'+i); if(el) el.textContent = lines[i-1]||''; });
+  }
 }
 
 function pushDialogue(speaker, text){
