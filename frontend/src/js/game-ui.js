@@ -22,12 +22,14 @@ function renderParty(){
     const statRows = Object.keys(STAT_ABBR).map(s =>
       '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(isRivalStats ? '???' : (m[s]??10))+'</td></tr>'
     ).join('');
-    const cardCls = 'agent-card'+(isLit?' lit':'')+(isRival && isRevealed?' rival-card':'');
+    const isDead = m.health <= 0;
+    const cardCls = 'agent-card'+(isLit?' lit':'')+(isRival && isRevealed?' rival-card':'')+(isDead?' dead-card':'');
     const displayName = m.name.toUpperCase();
     const displayRole = isRival ? (isRevealed ? 'RIVAL' : 'SMUGGLER') : m.agent.toUpperCase();
-    const statusLabel = isLit ? '* active' : (isRival && isRevealed ? '! exposed' : '- standby');
-    const tipText = AGENT_DESC[key] || '';
-    html += '<div class="'+cardCls+'" data-role="'+m.agent+'" data-info="'+tipText+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
+    const statusLabel = isDead ? '† fallen' : (isLit ? '* active' : (isRival && isRevealed ? '! exposed' : '- standby'));
+    const tipText = isDead ? (m.name+' has fallen. Needs revival to act again.') : (AGENT_DESC[key] || '');
+    const deadOverlay = isDead ? '<div class="dead-overlay">[FALLEN]</div>' : '';
+    html += '<div class="'+cardCls+'" data-role="'+m.agent+'" data-info="'+tipText+'"><div class="sprite-container" style="position:relative">'+agentSpriteHTML(m.agent)+deadOverlay+'</div><div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
   });
   agentView.innerHTML = html;
   updateHUD();

@@ -104,6 +104,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .agent-card.rival-card{opacity:0.7;cursor:default;}
 .agent-card.rival-card .agent-lbl{border-color:#7a2222;background:#3a1010;color:#cc4444;}
 .agent-card.rival-card .agent-lbl span{color:#884444;}
+.agent-card.dead-card{opacity:0.45;cursor:default;pointer-events:none;}
+.agent-card.dead-card .sprite-container svg,.agent-card.dead-card .sprite-container img{filter:grayscale(1) brightness(0.4);}
+.agent-card.dead-card .agent-lbl{border-color:#3a2222;background:#1a0a0a;color:#664444;}
+.agent-card.dead-card .agent-lbl span{color:#443030;}
+.dead-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);font-family:'Press Start 2P',monospace;font-size:clamp(6px,0.6vw,9px);color:#cc3333;letter-spacing:1px;pointer-events:none;}
 
 .turn-tag{
   width:100%;box-sizing:border-box;z-index:5;flex-shrink:0;

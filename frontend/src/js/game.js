@@ -362,6 +362,18 @@ async function sendAct(){
     }
     return;
   }
+  // Debug: /kill <name> sets a member to 0 HP locally to test death visuals
+  if(val.startsWith('/kill ')){
+    const target = val.slice(6).trim().toLowerCase();
+    if(gameState){ const m = gameState.party.find(p=>p.name.toLowerCase()===target||p.agent.toLowerCase()===target); if(m){ m.health=0; renderParty(); showToast('[!] '+m.name+' set to 0 HP (debug)'); } }
+    return;
+  }
+  // Debug: /revive <name> restores a member to full HP locally
+  if(val.startsWith('/revive ')){
+    const target = val.slice(8).trim().toLowerCase();
+    if(gameState){ const m = gameState.party.find(p=>p.name.toLowerCase()===target||p.agent.toLowerCase()===target); if(m){ m.health=m.max_health; renderParty(); showToast('[+] '+m.name+' revived (debug)'); } }
+    return;
+  }
 
   pushDialogue('You', val);
   narrText.innerHTML = '<em style="color:#8a6a3a;font-size:0.8em">\u00BB '+val+'</em><br><br><span style="color:#a09070">\u2026the agents confer\u2026</span><br><br><span class="cursor"></span>';
