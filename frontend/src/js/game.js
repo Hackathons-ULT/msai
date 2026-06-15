@@ -302,6 +302,8 @@ function startDieAnimation(finalRoll, finalTotal, modifier, finalResult, finalCo
   if(dieRolling) return;
   dieRolling = true;
   dieHint.textContent = '\u27F3 rolling...';
+  try { _sfx.dice(); } catch {}
+  try { _bgm.setTension(1); } catch {}
   dieResult.style.display = 'none';
   const max = dieMax;
   let ticks = 0;
@@ -333,6 +335,8 @@ function startDieAnimation(finalRoll, finalTotal, modifier, finalResult, finalCo
       dieResult.style.color = lastDieColor;
       dieResult.style.display = 'block';
       dieRolling = false;
+      try { outcome ? _sfx.success() : _sfx.fail(); } catch {}
+      try { setTimeout(() => _bgm.setTension(0), 1800); } catch {}
       fetchTrace();
       setTimeout(function(){ if(onComplete) onComplete(); }, 1500);
     }
@@ -446,6 +450,9 @@ async function initGame(){
   loadingOverlay.classList.add('hidden');
   setTimeout(() => { loadingOverlay.style.display = 'none'; }, 500);
   pInput.addEventListener('keydown', e => { if(e.key === 'Enter') sendAct(); });
+  document.querySelectorAll('.sb-btn').forEach(btn => {
+    btn.addEventListener('click', () => { try { _sfx.click(); } catch {} });
+  });
   if(hasIntro){
     setTimeout(function(){
       pInput.disabled = false;
@@ -524,9 +531,9 @@ const _sfx = (function(){
 const _origSendAct = sendAct;
 window.sendAct = function(){ _sfx.send(); _origSendAct(); };
 
-// -- Ambient background music (starts on first interaction) --
+// -- Ambient background music (dynamic — reacts to game events) --
 const _bgm = (function(){
-  let ctx = null, started = false, masterGain = null;
+  let ctx = null, started = false, masterGain = null, _lfo = null, _tensionGain = null;
   function init(){
     if(started) return;
     started = true;
@@ -535,7 +542,6 @@ const _bgm = (function(){
       masterGain = ctx.createGain();
       masterGain.gain.value = 0;
       masterGain.connect(ctx.destination);
-      // Fade in over 4 seconds
       masterGain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 4);
 
       // Low industrial bass drone
@@ -554,13 +560,23 @@ const _bgm = (function(){
       mid.connect(midGain); midGain.connect(masterGain);
       mid.start();
 
-      // Slow LFO wobble on bass
-      const lfo = ctx.createOscillator();
+      // Slow LFO wobble on bass (sped up during tension)
+      _lfo = ctx.createOscillator();
       const lfoGain = ctx.createGain();
-      lfo.type = 'sine'; lfo.frequency.value = 0.12;
+      _lfo.type = 'sine'; _lfo.frequency.value = 0.12;
       lfoGain.gain.value = 3;
-      lfo.connect(lfoGain); lfoGain.connect(bass.frequency);
-      lfo.start();
+      _lfo.connect(lfoGain); lfoGain.connect(bass.frequency);
+      _lfo.start();
+
+      // Tension layer — sawtooth growl, starts silent, fades in during dice rolls
+      const tensionOsc = ctx.createOscillator();
+      _tensionGain = ctx.createGain();
+      tensionOsc.type = 'sawtooth'; tensionOsc.frequency.value = 165;
+      const tensionFilt = ctx.createBiquadFilter();
+      tensionFilt.type = 'lowpass'; tensionFilt.frequency.value = 700;
+      _tensionGain.gain.value = 0;
+      tensionOsc.connect(tensionFilt); tensionFilt.connect(_tensionGain); _tensionGain.connect(masterGain);
+      tensionOsc.start();
 
       // Rhythmic steam pulse (every ~2.4s)
       function steamPulse(){
@@ -585,7 +601,7 @@ const _bgm = (function(){
       setTimeout(steamPulse, 3000);
 
       // Slow clock-tick rhythm
-      function tick(){
+      function clockTick(){
         if(!ctx) return;
         try {
           const o = ctx.createOscillator(), g = ctx.createGain();
@@ -595,12 +611,30 @@ const _bgm = (function(){
           o.connect(g); g.connect(masterGain);
           o.start(); o.stop(ctx.currentTime+0.04);
         } catch {}
-        setTimeout(tick, 1800 + Math.random()*400);
+        setTimeout(clockTick, 1800 + Math.random()*400);
       }
-      setTimeout(tick, 1500);
+      setTimeout(clockTick, 1500);
     } catch {}
   }
-  return { init };
+  // Call setTension(1) to ramp up tension music during dice rolls, setTension(0) to calm down
+  function setTension(level){
+    if(!ctx || !_tensionGain || !_lfo) return;
+    try {
+      const now = ctx.currentTime;
+      _tensionGain.gain.cancelScheduledValues(now);
+      _tensionGain.gain.setValueAtTime(_tensionGain.gain.value, now);
+      _lfo.frequency.cancelScheduledValues(now);
+      _lfo.frequency.setValueAtTime(_lfo.frequency.value, now);
+      if(level >= 1){
+        _tensionGain.gain.linearRampToValueAtTime(0.14, now + 0.8);
+        _lfo.frequency.linearRampToValueAtTime(0.55, now + 1.5);
+      } else {
+        _tensionGain.gain.linearRampToValueAtTime(0, now + 2.5);
+        _lfo.frequency.linearRampToValueAtTime(0.12, now + 3.0);
+      }
+    } catch {}
+  }
+  return { init, setTension };
 })();
 
 // Start BGM on first user interaction
