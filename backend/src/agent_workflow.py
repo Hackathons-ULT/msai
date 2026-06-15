@@ -425,8 +425,9 @@ class LocalAgentWorkflow:
         agents = list(mapping.get(intent, ["Warrior", "Mage"]))
         if "rival" in lowered_action or "trust" in lowered_action:
             agents.append("Rival")
-        party_names = {m["agent"] for m in self.gm.get_state().get("party", [])}
-        agents = [a for a in agents if a in party_names]
+        # Only include alive party members (health > 0)
+        party_alive = {m["agent"] for m in self.gm.get_state().get("party", []) if m.get("health", 1) > 0}
+        agents = [a for a in agents if a in party_alive]
         seen = set()
         deduped = []
         for agent in agents:
@@ -710,6 +711,15 @@ class LocalAgentWorkflow:
             if lines:
                 state_changes = "\n".join(lines)
 
+        dead_members = [m.get("name", m.get("agent")) for m in state.get("party", []) if m.get("health", 1) <= 0]
+        dead_note = ""
+        if dead_members:
+            dead_note = (
+                f"\nCRITICAL: The following party members are DEAD (0 HP) and must NOT speak, act, "
+                f"or be described as doing anything: {', '.join(dead_members)}. "
+                f"They can only be mentioned as fallen/unconscious bodies.\n"
+            )
+
         system_prompt = (
             "You are the Game Master narrating a fantasy RPG turn.\n"
             "Write TWO paragraphs separated by the exact delimiter: ---PART TWO---\n\n"
@@ -723,13 +733,17 @@ class LocalAgentWorkflow:
             "Weave the mechanical state changes listed below into the narrative naturally.\n"
             "Do not list them mechanically; describe them as part of the story.\n\n"
             "Write in present tense, third person. Keep each paragraph to 2-4 sentences.\n"
-            "Do not label the parts. Just write them separated by the delimiter."
+            "Do not label the parts. Just write them separated by the delimiter.\n"
+            "IMPORTANT: Never declare a character dead, killed, or permanently incapacitated unless their HP is explicitly 0 in the party health data below. "
+            "A character with HP above 0 is still alive and fighting, even if they take damage this turn."
+            + dead_note
         )
 
         user_prompt = (
             f"Campaign: {state.get('campaign', '?')}\n"
             f"Location: {state.get('location', '?')}\n"
             f"Active Quest: {state.get('active_quest', 'none')}\n"
+            f"Party health: {', '.join(f\"{m.get('name', m.get('agent'))} HP {m.get('health', 0)}/{m.get('max_health', 20)}\" for m in state.get('party', []))}\n"
             f"Party: {', '.join(f'{n} ({a})' for n, a in zip(party_names, party_agents))}\n"
             f"Player Character: {state.get('player_character', 'the hero')}\n\n"
             f"Player action: \"{action}\"\n"
@@ -822,6 +836,8 @@ class LocalAgentWorkflow:
             name = member["agent"]
             if name == player_char or name in processed:
                 continue
+            if member.get("health", 1) <= 0:
+                continue  # dead characters don't speak
             processed.add(name)
             persona = PERSONAS.get(name)
             follow_narration = None
