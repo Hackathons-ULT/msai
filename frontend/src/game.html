@@ -17,11 +17,7 @@
       <div class="sb-btn" data-view="map" onclick="setStage('map')"><span class="ico">[M]</span>MAP</div>
       <div class="sb-btn locked" data-view="die" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
       <div class="sb-btn" data-view="trace" onclick="setStage('trace')"><span class="ico">[T]</span>TRACE</div>
-      <div class="sb-sep"></div>
-      <div class="trace-box">
-        <div class="trace-hd">&gt; LIVE TRACE</div>
-        <div class="trace-feed" id="traceFeed"></div>
-      </div>
+      <div class="sb-btn" onclick="showHelp()"><span class="ico">[?]</span>HELP</div>
       <div class="sb-sep"></div>
       <div class="sb-hp" id="hpDisplay">
         HP --/--
@@ -30,7 +26,11 @@
     </div>
 
     <div class="stage" id="stage">
-      <div class="turn-tag" id="turnTag"><span id="turnText">LOADING...</span></div>
+      <div class="turn-tag" id="turnTag">
+        <span class="turn-tag-label">[!] OBJECTIVE</span>
+        <span class="turn-tag-loc" id="turnLoc">THE SUMP</span>
+        <span class="turn-tag-quest" id="turnText">LOADING...</span>
+      </div>
 
       <div class="agent-view" id="agentView"></div>
 

@@ -80,69 +80,148 @@ function renderMap(){
   const mapEl = document.getElementById('mapBody');
   if(!mapEl) return;
   const loc = ((gameState && gameState.location) || '').toLowerCase();
-  const activeIdx = MAP_DISTRICTS.findIndex(d => loc.includes(d.id));
+  const ia = id => loc.includes(id);
+  const W = 520, H = 320, L = 16, R = 400, CX = 208;
 
-  const W = 460, dH = 78, gap = 4, y0 = 36, liftX = 406;
-  const totalH = y0 + MAP_DISTRICTS.length * (dH + gap) + 36;
-
-  let svg = `<svg viewBox="0 0 ${W} ${totalH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;max-height:320px;display:block;">
   <defs>
-    <style>.mp{animation:mpulse 2s ease-in-out infinite}@keyframes mpulse{0%,100%{opacity:1}50%{opacity:0.45}}</style>
-    <filter id="mg"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <pattern id="hx" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-      <line x1="0" y1="0" x2="0" y2="7" stroke="#2a1c0c" stroke-width="1.5"/>
-    </pattern>
+    <style>.mp{animation:mp 2s ease-in-out infinite}@keyframes mp{0%,100%{opacity:1}50%{opacity:0.25}}</style>
+    <filter id="fg"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#060416"/><stop offset="55%" stop-color="#100808"/><stop offset="100%" stop-color="#0e0806"/></linearGradient>
+    <pattern id="hx" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#1a1008" stroke-width="1.5"/></pattern>
+    <pattern id="gr" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M10 0L0 0 0 10" fill="none" stroke="rgba(80,60,20,0.07)" stroke-width="0.5"/></pattern>
   </defs>
-  <rect width="${W}" height="${totalH}" fill="#0c0a06"/>
-  <rect width="${W}" height="28" fill="#141008"/>
-  <text x="${W/2}" y="18" text-anchor="middle" fill="#6a5030" font-size="8" font-family="monospace" letter-spacing="3">[ AETHELGARD - CITY CROSS-SECTION ]</text>
-  <rect x="${liftX}" y="${y0}" width="18" height="${MAP_DISTRICTS.length*(dH+gap)-gap}" fill="#0e0c08" stroke="#2a1e0c" stroke-width="1"/>
-  <text x="${liftX+9}" y="${y0-5}" text-anchor="middle" fill="#2a1e0c" font-size="6" font-family="monospace">LIFT</text>`;
+  <rect width="${W}" height="${H}" fill="url(#bg)"/><rect width="${W}" height="${H}" fill="url(#gr)"/>`;
 
-  MAP_DISTRICTS.forEach((d,i)=>{
-    const y = y0 + i*(dH+gap);
-    const w = liftX - 6;
-    const isActive = i === activeIdx;
-    const op = (activeIdx >= 0 && i > activeIdx) ? 0.38 : 1;
+  // Stars
+  [30,75,120,160,210,280,340,380,420,460,490].forEach((x,i)=>{ s+=`<circle cx="${x}" cy="${4+i%4*3}" r="0.7" fill="white" opacity="${0.15+i%3*0.1}"/>`; });
 
-    if(i === MAP_DISTRICTS.length-1){
-      svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="${d.dark}" opacity="${op}"/>`;
-      svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="url(#hx)" opacity="${op*0.5}"/>`;
-    } else {
-      svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="${d.dark}" opacity="${op}"/>`;
-    }
-    if(isActive){
-      svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="${d.col}" opacity="0.1" filter="url(#mg)"/>`;
-      svg += `<rect x="0" y="${y}" width="5" height="${dH}" fill="${d.col}"/>`;
-    }
-    svg += `<rect x="0" y="${y}" width="${w}" height="${dH}" fill="none" stroke="${d.col}" stroke-width="${isActive?2:0.7}" opacity="${op}"/>`;
-    svg += `<text x="14" y="${y+28}" fill="${d.col}" font-size="11" font-family="monospace" opacity="${op}">${d.icon}</text>`;
-    svg += `<text x="52" y="${y+24}" fill="${isActive?d.col:'#a09070'}" font-size="${isActive?11:9}" font-family="monospace" letter-spacing="1" opacity="${op}">${d.label}</text>`;
-    svg += `<text x="${w-6}" y="${y+24}" text-anchor="end" fill="${d.col}" font-size="6.5" font-family="monospace" opacity="${op*0.55}">${d.tag}</text>`;
-    const note = d.note.length > 54 ? d.note.substring(0,54)+'...' : d.note;
-    svg += `<text x="12" y="${y+44}" fill="#7a6040" font-size="7.5" font-family="monospace" opacity="${op}">${note}</text>`;
-    if(isActive){
-      svg += `<text x="${w-6}" y="${y+dH-9}" text-anchor="end" fill="${d.col}" font-size="8" font-family="monospace" class="mp">&gt;&gt; YOU ARE HERE</text>`;
-    }
-    // steam puffs above The Sump
-    if(d.id==='the sump'){
-      [80,160,240,310].forEach(sx=>{
-        svg += `<ellipse cx="${sx}" cy="${y-7}" rx="14" ry="5" fill="${d.col}" opacity="0.1"/>`;
-      });
-    }
-    const ly = y + dH/2;
-    svg += `<line x1="${w}" y1="${ly}" x2="${liftX}" y2="${ly}" stroke="${d.col}" stroke-width="${isActive?1.5:0.5}" stroke-dasharray="${isActive?'none':'4,3'}" opacity="${op}"/>`;
-    svg += `<circle cx="${liftX+9}" cy="${ly}" r="${isActive?6:3.5}" fill="${isActive?d.col:'#141008'}" stroke="${d.col}" stroke-width="${isActive?1.5:0.8}" opacity="${op}"/>`;
+  // Label helper
+  const lbl = (x,y,text,col,size,cls='',op=1)=> `<text x="${x}" y="${y}" fill="${col}" font-size="${size}" font-family="monospace" letter-spacing="1" ${cls?'class="'+cls+'"':''} opacity="${op}">${text}</text>`;
+  const tag = (text,col,active,y2)=> active ? lbl(R+14,y2,text,col,7,'mp') : lbl(R+14,y2,text,'#5a4828',6,'',0.6);
+  const lline = (y,col,op)=>`<line x1="${R}" y1="${y}" x2="${R+10}" y2="${y}" stroke="${col}" stroke-width="1" opacity="${op}"/>`;
+
+  // === UPPER-SPIRE (y 12-78) ===
+  const uC='#c090d8', uA=ia('upper-spire'), uOp=uA?1:0.55;
+  // base platform
+  s+=`<rect x="${L}" y="68" width="${R-L}" height="12" fill="${uA?'#220a40':'#100418'}" stroke="${uC}" stroke-width="${uA?1.5:0.7}" opacity="${uOp}"/>`;
+  // towers
+  [[CX,14,16],[CX-55,28,13],[CX+55,28,13],[CX-105,38,11],[CX+105,38,11],[CX-148,46,9],[CX+148,46,9]].forEach(([tx,ty,tw])=>{
+    s+=`<polygon points="${tx},${ty} ${tx+tw/2},68 ${tx-tw/2},68" fill="${uA?'#2a0e48':'#150820'}" stroke="${uC}" stroke-width="${uA?1.2:0.6}" opacity="${uOp}"/>`;
+    if(uA&&tw>10) s+=`<rect x="${tx-2}" y="${ty+18}" width="4" height="5" fill="${uC}" opacity="0.5"/>`;
   });
+  if(uA){ s+=`<rect x="${L}" y="12" width="${R-L}" height="68" fill="${uC}" opacity="0.06" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="68" width="5" height="12" fill="${uC}"/>`; }
+  s+=lbl(R+14,78,'UPPER-SPIRE',uA?uC:'#907090',uA?9:7,'',uOp);
+  s+=tag(uA?'>> YOU ARE HERE':'Engineers domain',uC,uA,88)+lline(74,uC,uOp);
 
-  svg += `<text x="8" y="${totalH-8}" fill="#3a2c10" font-size="6.5" font-family="monospace">Active = current location  |  Dim = not yet reached</text>`;
-  svg += `</svg>`;
-  mapEl.innerHTML = svg;
+  // === ZENITH WARDS (y 82-118) ===
+  const zC='#6ea8d0', zA=ia('zenith wards'), zOp=zA?1:0.55;
+  s+=`<rect x="${L}" y="82" width="${R-L}" height="36" fill="${zA?'#0a1828':'#060e18'}" stroke="${zC}" stroke-width="${zA?1.5:0.7}" opacity="${zOp}"/>`;
+  [[70,22],[130,28],[200,24],[270,30],[335,22],[380,26]].forEach(([bx,bh])=>{
+    s+=`<rect x="${bx}" y="${118-bh}" width="26" height="${bh}" fill="${zA?'#0c1e30':'#060c18'}" stroke="${zC}" stroke-width="0.6" opacity="${zOp*0.9}"/>`;
+    s+=`<rect x="${bx+5}" y="${118-bh+5}" width="6" height="5" fill="${zC}" opacity="${zA?0.5:0.2}"/>`;
+    s+=`<rect x="${bx+15}" y="${118-bh+5}" width="6" height="5" fill="${zC}" opacity="${zA?0.5:0.2}"/>`;
+  });
+  if(zA){ s+=`<rect x="${L}" y="82" width="${R-L}" height="36" fill="${zC}" opacity="0.07" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="82" width="5" height="36" fill="${zC}"/>`; }
+  s+=lbl(R+14,100,'ZENITH WARDS',zA?zC:'#607090',zA?9:7,'',zOp);
+  s+=tag(zA?'>> YOU ARE HERE':'Guild halls',zC,zA,110)+lline(100,zC,zOp);
+
+  // === GLASS ARCH (y 120-148) ===
+  const gC='#44c898', gA=ia('glass arch'), gOp=gA?1:0.55;
+  s+=`<rect x="${L}" y="120" width="${R-L}" height="28" fill="${gA?'#0a2820':'#061810'}" stroke="${gC}" stroke-width="${gA?1.5:0.7}" opacity="${gOp}"/>`;
+  s+=`<path d="M ${L+18} 148 Q ${CX} 118 ${R-18} 148" fill="none" stroke="${gC}" stroke-width="${gA?2:1}" opacity="${gOp}"/>`;
+  s+=`<path d="M ${L+32} 148 Q ${CX} 126 ${R-32} 148" fill="none" stroke="${gC}" stroke-width="${gA?1:0.5}" opacity="${gOp*0.5}"/>`;
+  [[L+16,28],[R-24,28]].forEach(([px,ph])=>s+=`<rect x="${px}" y="120" width="10" height="${ph}" fill="${gA?'#0a2820':'#061810'}" stroke="${gC}" stroke-width="0.7" opacity="${gOp*0.9}"/>`);
+  if(gA){ s+=`<rect x="${L}" y="120" width="${R-L}" height="28" fill="${gC}" opacity="0.07" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="120" width="5" height="28" fill="${gC}"/>`; }
+  s+=lbl(R+14,134,'GLASS ARCH',gA?gC:'#408878',gA?9:7,'',gOp);
+  s+=tag(gA?'>> YOU ARE HERE':'Trade hub',gC,gA,144)+lline(134,gC,gOp);
+
+  // === SUNKEN MARKET (y 150-182) ===
+  const smC='#c89050', smA=ia('sunken market'), smOp=smA?1:0.6;
+  s+=`<rect x="${L}" y="150" width="${R-L}" height="32" fill="${smA?'#281808':'#160e04'}" stroke="${smC}" stroke-width="${smA?1.5:0.7}" opacity="${smOp}"/>`;
+  for(let wx=L;wx<R-10;wx+=22){ s+=`<path d="M${wx} 165 Q${wx+8} 159 ${wx+16} 165 Q${wx+20} 169 ${wx+22} 165" fill="none" stroke="${smC}" stroke-width="${smA?1:0.5}" opacity="${smOp*0.5}"/>`; }
+  if(smA){ s+=`<rect x="${L}" y="150" width="${R-L}" height="32" fill="${smC}" opacity="0.07" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="150" width="5" height="32" fill="${smC}"/>`; }
+  s+=lbl(R+14,165,'SUNKEN MARKET',smA?smC:'#907040',smA?9:7,'',smOp);
+  s+=tag(smA?'>> YOU ARE HERE':'Flooded markets',smC,smA,175)+lline(165,smC,smOp);
+
+  // === THE SUMP (y 184-245) ===
+  const tC='#cc4422', tA=ia('the sump'), tOp=tA?1:0.65;
+  s+=`<rect x="${L}" y="184" width="${R-L}" height="60" fill="${tA?'#220808':'#120404'}" stroke="${tC}" stroke-width="${tA?2:0.8}" opacity="${tOp}"/>`;
+  if(tA){ s+=`<rect x="${L}" y="184" width="${R-L}" height="60" fill="${tC}" opacity="0.1" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="184" width="5" height="60" fill="${tC}"/>`; }
+  // Pipes
+  [65,118,175,232,290,345,385].forEach((px,i)=>{
+    const ph=14+(i%3)*10;
+    s+=`<rect x="${px}" y="${184-ph}" width="9" height="${ph+4}" fill="${tA?'#2a0808':'#160404'}" stroke="${tC}" stroke-width="0.8" opacity="${tOp*0.9}"/>`;
+    s+=`<circle cx="${px+4.5}" cy="${184-ph}" r="5.5" fill="${tA?'#220606':'#100202'}" stroke="${tC}" stroke-width="0.8" opacity="${tOp*0.9}"/>`;
+    if(tA) s+=`<ellipse cx="${px+4.5}" cy="${184-ph-7}" rx="6" ry="3" fill="${tC}" opacity="0.14"/>`;
+  });
+  // Smog layer
+  [90,190,290,360].forEach(sx=>s+=`<ellipse cx="${sx}" cy="188" rx="28" ry="7" fill="${tC}" opacity="${tA?0.1:0.04}"/>`);
+  s+=lbl(R+14,208,'THE SUMP',tA?tC:'#904030',tA?9:7,'',tOp);
+  s+=tag(tA?'>> YOU ARE HERE':'Plague epicentre',tC,tA,220)+lline(208,tC,tOp);
+  if(tA) s+=lbl(26,238,'PLAGUE EPICENTRE',tC,6,'mp');
+
+  // === UNDERGRID (y 247-305) ===
+  const ugC='#6a5038', ugA=ia('undergrid'), ugOp=ugA?0.9:0.4;
+  s+=`<rect x="${L}" y="247" width="${R-L}" height="56" fill="#060604"/><rect x="${L}" y="247" width="${R-L}" height="56" fill="url(#hx)" opacity="0.55"/>`;
+  s+=`<rect x="${L}" y="247" width="${R-L}" height="56" fill="none" stroke="${ugC}" stroke-width="${ugA?1.5:0.6}" opacity="${ugOp}"/>`;
+  [[110,275,28,18],[220,275,28,18],[330,275,28,18]].forEach(([cx,cy,rx,ry])=>{
+    s+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${ugC}" stroke-width="${ugA?1:0.5}" opacity="${ugOp}"/>`;
+    s+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx-7}" ry="${ry-5}" fill="#080806"/>`;
+  });
+  if(ugA){ s+=`<rect x="${L}" y="247" width="${R-L}" height="56" fill="${ugC}" opacity="0.07" filter="url(#fg)"/>`; s+=`<rect x="${L}" y="247" width="5" height="56" fill="${ugC}"/>`; }
+  s+=lbl(R+14,268,'UNDERGRID',ugA?ugC:'#5a4028',ugA?9:7,'',ugOp);
+  s+=tag(ugA?'>> YOU ARE HERE':'Deep tunnels',ugC,ugA,279)+lline(268,ugC,ugOp);
+
+  // Right panel divider
+  s+=`<line x1="${R+10}" y1="12" x2="${R+10}" y2="305" stroke="#2a1e0c" stroke-width="0.5"/>`;
+
+  // Bottom label
+  s+=`<text x="${CX}" y="${H-5}" text-anchor="middle" fill="#2a1e0c" font-size="6" font-family="monospace" letter-spacing="2">AETHELGARD - CITY CROSS-SECTION</text>`;
+  s+=`</svg>`;
+  mapEl.innerHTML = s;
 }
 
 function pushDialogue(speaker, text){
   dialogueHistory.push({speaker, text});
   renderRecap();
+}
+
+function showHelp(){
+  setStage('agents');
+  narrText.innerHTML = HELP_TEXT+'<br><br><b>SLASH COMMANDS:</b><br>/lore /map /party /recap /trace /status<span class="cursor"></span>';
+}
+window.showHelp = showHelp;
+
+function showGameOver(){
+  let el = document.getElementById('gameOverScreen');
+  if(el) return;
+  el = document.createElement('div');
+  el.id = 'gameOverScreen';
+  el.className = 'end-screen';
+  el.innerHTML = '<div class="end-title" style="color:#cc4422">[ PARTY DEFEATED ]</div>'
+    +'<div class="end-body">Your entire party has fallen. The Clockwork Plague spreads unchecked.<br><br>The city of Aethelgard descends into darkness.</div>'
+    +'<button class="end-btn" onclick="window.location.href=\'landing.html\'">RESTART &gt;</button>';
+  document.body.appendChild(el);
+}
+
+function showVictory(){
+  let el = document.getElementById('victoryScreen');
+  if(el) return;
+  el = document.createElement('div');
+  el.id = 'victoryScreen';
+  el.className = 'end-screen';
+  el.innerHTML = '<div class="end-title" style="color:#44dd88">[ VICTORY ]</div>'
+    +'<div class="end-body">The Clockwork Plague has been stopped. Aethelgard breathes again.<br><br>The city will remember your party.</div>'
+    +'<button class="end-btn" onclick="window.location.href=\'landing.html\'">PLAY AGAIN &gt;</button>';
+  document.body.appendChild(el);
+}
+
+function checkEndConditions(){
+  if(!gameState) return;
+  const totalHp = (gameState.party||[]).reduce((s,m)=>s+m.health,0);
+  if(totalHp <= 0){ showGameOver(); return; }
+  if(gameState.world_flags && gameState.world_flags.victory){ showVictory(); }
 }
 
 const LORE_TERMS = ['Clockwork Plague','The Sump','Aethelgard','Pressure Core','Sector-04','Upper-Spire','Undergrid','brass cylinder','aether-core','pressure valves','emergency grid-lock','holo-display','swampfolk','automaton','Zenith Wards','master console','steam pipes','Engineers','Hidden Blade'];
@@ -168,7 +247,7 @@ function appendNarration(html){
   let current = narrText.innerHTML;
   current = current.replace('<span class="cursor"></span>', '');
   narrText.innerHTML = current + highlightTerms(html) + '<span class="cursor"></span>';
-  narrText.scrollTop = narrText.scrollHeight;
+  narrText.scrollTop = 0;
 }
 
 function renderRecap(){
@@ -464,6 +543,7 @@ async function initGame(){
 }
 
 initGame();
+
 
 // -- Panel resizer --
 (function(){

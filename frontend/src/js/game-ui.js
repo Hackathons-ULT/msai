@@ -46,9 +46,20 @@ function updateHUD(){
   let totalHp = 0, totalMax = 0;
   members.forEach(m => { totalHp += m.health; totalMax += m.max_health; });
   const pct = totalMax > 0 ? (totalHp / totalMax * 100) : 0;
-  hpDisplay.innerHTML = 'HP '+totalHp+'/'+totalMax+'<div class="hp-bar"><div class="hp-fill" id="hpFill" style="width:'+pct+'%"></div></div>';
-  turnText.textContent = (gameState.location || '?')+' - '+(gameState.active_quest || '?');
+  const barColor = pct > 60 ? '#cc4422' : pct > 30 ? '#cc8822' : '#cc2222';
+  const memberBars = members.map(m => {
+    const mp = m.max_health > 0 ? (m.health/m.max_health*100) : 0;
+    const shortName = m.name.substring(0,4).toUpperCase();
+    return '<div class="hp-member"><span class="hp-name">'+shortName+'</span>'
+      +'<div class="hp-mini"><div class="hp-mini-fill" style="width:'+mp+'%;background:'+(mp>50?'#cc4422':mp>25?'#cc7722':'#882222')+'"></div></div>'
+      +'<span class="hp-val">'+m.health+'</span></div>';
+  }).join('');
+  hpDisplay.innerHTML = '<div class="hp-label">PARTY HEALTH</div>'+memberBars+'<div class="hp-bar" style="margin-top:4px"><div class="hp-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div><div class="hp-total">'+totalHp+'/'+totalMax+'</div>';
+  const locEl = document.getElementById('turnLoc');
+  if(locEl) locEl.textContent = (gameState.location || '?').toUpperCase();
+  turnText.textContent = gameState.active_quest || '?';
   renderRecap();
+  if(typeof checkEndConditions === 'function') checkEndConditions();
 }
 
 function renderTrace(traceData){
@@ -57,14 +68,16 @@ function renderTrace(traceData){
     const type = t.type || 'info';
     const cls = type === 'dice' ? 'roll' : type === 'state_update' ? 'info' : 'done';
     let text;
-    if(type === 'dice') text = (t.actor||'?')+' '+t.check+' \u2192 '+t.total;
-    else if(type === 'narration') text = '\u270E '+(t.text||'').slice(0,60);
+    const mem_name = (agent) => { const m = gameState&&gameState.party&&gameState.party.find(x=>x.agent.toLowerCase()===(agent||'').toLowerCase()); return m?m.name:(agent||'?'); };
+    if(type === 'dice') text = mem_name(t.actor)+' '+t.check+' \u2192 '+t.total;
+    else if(type === 'narration'||type === 'narration_setup'||type === 'narration_outcome') text = '\u270E '+(t.text||'').slice(0,55);
     else if(type === 'state_update') text = '\u21B3 '+(t.location?t.location:'')+(t.health_changes?' HP*':'')+(t.flags_set?' [F]':'');
-    else if(type === 'agent_intro'){ const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===(t.agent||'')); text = '\u25B6 '+(mem?mem.name:t.agent||'?')+' ready'; }
-    else if(type === 'agent_action'){ const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===(t.agent||'')); text = '\u25B6 '+(mem?mem.name:t.agent||'?')+': '+(t.action||'').slice(0,35); }
-    else if(type === 'plan') text = '[*] '+(t.intent||t.text||'planning').slice(0,45);
-    else if(type === 'lore') text = '[W] lore: '+(t.query||'').slice(0,35);
-    else text = '\u2022 '+(t.text||t.action||t.agent||type).toString().slice(0,45);
+    else if(type === 'agent_intro'||type === 'agent') { text = '\u25B6 '+mem_name(t.agent)+' ready'; }
+    else if(type === 'agent_action') { text = '\u25B6 '+mem_name(t.agent)+': '+(t.action||'').slice(0,35); }
+    else if(type === 'agent_followup') { text = '\u25B6 '+mem_name(t.agent)+': '+(t.action||t.text||'').slice(0,40); }
+    else if(type === 'planner'||type === 'plan') text = '[>] '+(t.intent||t.text||'planning').slice(0,45);
+    else if(type === 'retrieval'||type === 'lore') text = '[W] '+(t.query||t.text||'lore lookup').slice(0,40);
+    else text = '\u2022 '+(t.text||t.action||t.agent||type).toString().slice(0,50);
     return '<div class="tl '+cls+'">'+text+'</div>';
   }).join('');
   traceFeed.innerHTML = feedHtml || '<div class="tl info">\u27F3 Awaiting actions...</div>';
@@ -83,18 +96,16 @@ function renderTrace(traceData){
       if(t.location) text += ' - '+t.location;
       if(t.health_changes) text += ' - HP: '+Object.entries(t.health_changes).map(([k,v]) => k+' '+(v>0?'+':'')+v).join(', ');
       if(t.flags_set) text += ' - '+Object.keys(t.flags_set).join(', ');
-    } else if(type === 'agent_intro'){
-      const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===(t.agent||''));
-      text = '\u25b6 '+(mem?mem.name:t.agent||'?')+' is ready';
-    } else if(type === 'agent_action'){
-      const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===(t.agent||''));
-      text = '\u25b6 '+(mem?mem.name:t.agent||'?')+': '+(t.action||'');
-    } else if(type === 'plan'){
-      text = '[*] PLAN: '+(t.intent||t.text||'');
-    } else if(type === 'lore'){
-      text = '[W] LORE FETCH: '+(t.query||'');
     } else {
-      text = '\u2022 '+(t.text||t.action||t.agent||type)+' '+JSON.stringify(t).slice(0,60);
+      const nm2 = (ag) => { const x = gameState&&gameState.party&&gameState.party.find(m=>m.agent.toLowerCase()===(ag||'').toLowerCase()); return x?x.name:(ag||'?'); };
+      if(type === 'agent_intro'||type === 'agent') text = '\u25b6 '+nm2(t.agent)+' ready'+(t.note?' \u2014 '+t.note.slice(0,60):'');
+      else if(type === 'agent_action') text = '\u25b6 '+nm2(t.agent)+': '+(t.action||'');
+      else if(type === 'agent_followup') text = '\u25b6 '+nm2(t.agent)+': '+(t.action||t.text||'');
+      else if(type === 'planner'||type === 'plan') text = '[>] PLAN: intent='+(t.intent||t.text||'?')+(t.agents?' agents='+t.agents:'');
+      else if(type === 'retrieval'||type === 'lore') text = '[W] LORE SEARCH: '+(t.query||t.text||'');
+      else if(type === 'narration_setup') text = '\u270e SETUP: '+(t.text||'');
+      else if(type === 'narration_outcome') text = '\u270e OUTCOME: '+(t.text||'');
+      else text = '\u2022 '+type+(t.text?' \u2014 '+(t.text+'').slice(0,80):'')+(t.action?' \u2014 '+(t.action+'').slice(0,80):'');
     }
     return '<div class="tf-line '+cls+'">'+text+'</div>';
   }).join('');
