@@ -6,27 +6,34 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)hideHelp()">
+  <div class="help-modal">
+    <div class="help-hd">[ AGENTS LEAGUE - HELP ]<button class="help-x" onclick="hideHelp()">[X]</button></div>
+    <div class="help-body" id="helpBody"></div>
+  </div>
+</div>
+
 <div class="shell">
 
   <div class="top">
     <div class="sidebar">
       <div class="sb-title">- MENU -</div>
-      <div class="sb-btn active" data-view="agents" onclick="setStage('agents')"><span class="ico">[X]</span>PARTY</div>
-      <div class="sb-btn" data-view="recap" onclick="setStage('recap')"><span class="ico">[S]</span>RECAP</div>
-      <div class="sb-btn" data-view="lore" onclick="setStage('lore')"><span class="ico">[W]</span>LORE</div>
-      <div class="sb-btn" data-view="map" onclick="setStage('map')"><span class="ico">[M]</span>MAP</div>
-      <div class="sb-btn locked" data-view="die" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
-      <div class="sb-btn" data-view="trace" onclick="setStage('trace')"><span class="ico">[T]</span>TRACE</div>
-      <div class="sb-btn" onclick="showHelp()"><span class="ico">[?]</span>HELP</div>
-      <div class="sb-sep"></div>
-      <div class="sb-hp" id="hpDisplay">
-        HP --/--
-        <div class="hp-bar"><div class="hp-fill" id="hpFill" style="width:0%"></div></div>
+      <div class="sb-scroll">
+        <div class="sb-btn active" data-view="agents" onclick="setStage('agents')"><span class="ico">[X]</span>PARTY</div>
+        <div class="sb-btn" data-view="recap" onclick="setStage('recap')"><span class="ico">[S]</span>RECAP</div>
+        <div class="sb-btn" data-view="lore" onclick="setStage('lore')"><span class="ico">[W]</span>LORE</div>
+        <div class="sb-btn" data-view="map" onclick="setStage('map')"><span class="ico">[M]</span>MAP</div>
+        <div class="sb-btn locked" data-view="die" onclick="setStage('die')" id="dieBtn"><span class="ico">[!]</span>DIE ROLL</div>
+        <div class="sb-btn" data-view="trace" onclick="setStage('trace')"><span class="ico">[T]</span>TRACE</div>
+        <div class="sb-btn" onclick="showHelp()"><span class="ico">[?]</span>HELP</div>
+        <div class="sb-btn" onclick="saveGame()" title="Download your current game as a .json file"><span class="ico">[S]</span>SAVE GAME<span class="sb-sub">as .json</span></div>
+        <div class="sb-btn" onclick="loadGame()" title="Restore a previously saved .json file"><span class="ico">[L]</span>LOAD GAME<span class="sb-sub">from .json</span></div>
       </div>
+      <div id="hpDisplay" style="display:none"></div>
     </div>
 
     <div class="stage" id="stage">
-      <div class="turn-tag" id="turnTag" onclick="toggleObjectives()">
+      <div class="turn-tag" id="turnTag" onclick="toggleObjectives()" title="Click to expand / collapse objectives">
         <span class="turn-tag-label">[!] OBJECTIVE</span>
         <span class="turn-tag-loc" id="turnLoc">THE SUMP</span>
         <span class="turn-tag-quest" id="turnText">LOADING...</span>
@@ -99,9 +106,14 @@
       </div>
 
       <div class="input-row">
-        <input class="p-input" type="text" placeholder="> what do you do? (type /help for commands)" id="pInput">
+        <input class="p-input" type="text" placeholder="> what do you do? (type /help)" id="pInput">
+        <div class="power-wrap">
+          <button class="power-btn" id="powerBtn" onclick="usePower()">[!] POWER</button>
+          <div class="power-tooltip" id="powerTooltip"></div>
+        </div>
         <button class="act-btn" onclick="sendAct()">ACT &gt;</button>
       </div>
+      <div class="suggest-row" id="suggestRow"></div>
     </div>
 
   </div>
