@@ -435,11 +435,6 @@ function startDieAnimation(finalRoll, finalTotal, modifier, finalResult, finalCo
       dieResult.style.color = lastDieColor;
       dieResult.style.display = 'block';
       dieRolling = false;
-      const line = document.createElement('div');
-      line.className = 'tl roll';
-      line.textContent = 'd'+max+' \u2192 '+finalRoll+modStr+' = '+finalTotal+' ('+outcomeLabel.toLowerCase()+')';
-      traceFeed.appendChild(line);
-      while(traceFeed.children.length > 8) traceFeed.removeChild(traceFeed.firstChild);
       fetchTrace();
       setTimeout(function(){ if(onComplete) onComplete(); }, 1500);
     }

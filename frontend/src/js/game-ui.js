@@ -14,7 +14,7 @@ function renderParty(){
   members.forEach(m => {
     const key = m.agent.toLowerCase();
     const isLit = key === activeKey;
-    const STAT_ABBR = {strength:'STRENGTH',dexterity:'AGILITY',constitution:'ENDURANCE',intelligence:'INTELLECT',wisdom:'WISDOM',charisma:'CHARM'};
+    const STAT_ABBR = {strength:'STR',dexterity:'DEX',constitution:'DEF',intelligence:'INT',wisdom:'WIS',charisma:'CHA'};
     const STAT_TIP = {strength:'Physical power: melee attacks and forced actions',dexterity:'Agility and reflexes: stealth, speed, dodging',constitution:'Toughness: endurance and resistance to harm',intelligence:'Knowledge and reasoning: arcana and investigation',wisdom:'Perception and judgement: awareness and willpower',charisma:'Social force: persuasion, deception and charm'};
     const isRival = key === 'rival';
     const isRevealed = isRival && gameState.world_flags && gameState.world_flags.kael_revealed;
@@ -64,24 +64,6 @@ function updateHUD(){
 
 function renderTrace(traceData){
   const lines = traceData || [];
-  const feedHtml = lines.slice(-8).map(t => {
-    const type = t.type || 'info';
-    const cls = type === 'dice' ? 'roll' : type === 'state_update' ? 'info' : 'done';
-    let text;
-    const mem_name = (agent) => { const m = gameState&&gameState.party&&gameState.party.find(x=>x.agent.toLowerCase()===(agent||'').toLowerCase()); return m?m.name:(agent||'?'); };
-    if(type === 'dice') text = mem_name(t.actor)+' '+t.check+' \u2192 '+t.total;
-    else if(type === 'narration'||type === 'narration_setup'||type === 'narration_outcome') text = '\u270E '+(t.text||'').slice(0,55);
-    else if(type === 'state_update') text = '\u21B3 '+(t.location?t.location:'')+(t.health_changes?' HP*':'')+(t.flags_set?' [F]':'');
-    else if(type === 'agent_intro'||type === 'agent') { text = '\u25B6 '+mem_name(t.agent)+' ready'; }
-    else if(type === 'agent_action') { text = '\u25B6 '+mem_name(t.agent)+': '+(t.action||'').slice(0,35); }
-    else if(type === 'agent_followup') { text = '\u25B6 '+mem_name(t.agent)+': '+(t.action||t.text||'').slice(0,40); }
-    else if(type === 'planner'||type === 'plan') text = '[>] '+(t.intent||t.text||'planning').slice(0,45);
-    else if(type === 'retrieval'||type === 'lore') text = '[W] '+(t.query||t.text||'lore lookup').slice(0,40);
-    else text = '\u2022 '+(t.text||t.action||t.agent||type).toString().slice(0,50);
-    return '<div class="tl '+cls+'">'+text+'</div>';
-  }).join('');
-  traceFeed.innerHTML = feedHtml || '<div class="tl info">\u27F3 Awaiting actions...</div>';
-
   const fullHtml = lines.map(t => {
     const type = t.type || 'info';
     const cls = type === 'dice' ? 'roll' : type === 'state_update' ? 'info' : 'done';

@@ -1,7 +1,6 @@
 const $ = id => document.getElementById(id);
 
 const agentView = $('agentView');
-const traceFeed = $('traceFeed');
 const traceFullBody = $('traceFullBody');
 const traceFullHd = $('traceFullHd');
 const narrText = $('narrText');

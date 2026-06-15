@@ -170,7 +170,7 @@ class LocalAgentWorkflow:
                 modifier=modifier,
             )
 
-        state_patch = self._derive_state_patch(action, plan, lore, dice_result)
+        state_patch = plan.state_patch or self._derive_state_patch(action, plan, lore, dice_result)
         warnings: list[str] = []
         if state_patch:
             warnings = self.tools.apply_patch(state_patch)
@@ -184,7 +184,7 @@ class LocalAgentWorkflow:
             )
 
         narration_setup, narration_outcome = self._compose_narration(
-            action, plan, lore, specialist_notes, dice_result, warnings
+            action, plan, lore, specialist_notes, dice_result, warnings, state_patch
         )
         followups = self._generate_followups(plan, dice_result)
 
@@ -217,30 +217,27 @@ class LocalAgentWorkflow:
         if not llm_plan:
             return heuristic
 
-        # Keep routing and state changes deterministic. The LLM may only suggest
-        # a refined retrieval query; everything else stays anchored to the
-        # heuristic plan so turns cannot drift into invalid agent routing.
-        retrieval_query = self._sanitize_retrieval_query(llm_plan.get("retrieval_query"))
-        if retrieval_query:
-            heuristic.retrieval_query = retrieval_query
-            heuristic.source = "llm"
-        return heuristic
-
-        llm_plan = self._llm_build_plan(action, session_id)
-        if not llm_plan:
-            return heuristic
-
-        # Merge LLM output with safe defaults.
+        # Merge LLM's refinements with safe heuristic defaults.
+        # Routing and dice mechanics stay anchored to the heuristic plan
+        # so turns cannot drift into invalid state.
         heuristic.intent = llm_plan.get("intent", heuristic.intent) or heuristic.intent
-        heuristic.agents = self._clean_agents(llm_plan.get("agents", heuristic.agents))
         heuristic.needs_dice = bool(llm_plan.get("needs_dice", heuristic.needs_dice))
         heuristic.dice_actor = llm_plan.get("dice_actor") or heuristic.dice_actor
         heuristic.dice_check = llm_plan.get("dice_check") or heuristic.dice_check
-        heuristic.dice_difficulty = self._coerce_int(llm_plan.get("dice_difficulty"), heuristic.dice_difficulty)
-        heuristic.retrieval_query = llm_plan.get("retrieval_query", heuristic.retrieval_query) or heuristic.retrieval_query
+        heuristic.dice_difficulty = self._coerce_int(
+            llm_plan.get("dice_difficulty"), heuristic.dice_difficulty
+        )
+        retrieval_query = self._sanitize_retrieval_query(llm_plan.get("retrieval_query"))
+        if retrieval_query:
+            heuristic.retrieval_query = retrieval_query
         heuristic.scope = llm_plan.get("scope", heuristic.scope) or heuristic.scope
-        if isinstance(llm_plan.get("state_patch"), dict):
-            heuristic.state_patch = llm_plan["state_patch"]
+
+        # The GM (LLM) proposes state changes; sanitize and use them.
+        llm_patch = llm_plan.get("state_patch")
+        if isinstance(llm_patch, dict):
+            sanitized = self._sanitize_state_patch(llm_patch)
+            if sanitized:
+                heuristic.state_patch = sanitized
         heuristic.source = "llm"
         return heuristic
 
@@ -280,17 +277,35 @@ class LocalAgentWorkflow:
             "intent (string), agents (list of strings), needs_dice (bool),\n"
             "dice_actor (string or null), dice_check (string or null),\n"
             "dice_difficulty (int or null), retrieval_query (string),\n"
-            "scope (\"player\" or \"gm\"), state_patch (object).\n"
+            "scope (\"player\" or \"gm\"), state_patch (object).\n\n"
             "Allowed intents: combat, support, stealth, travel, investigate, arcana, social, clarify.\n"
-            "Pick 1-3 agents maximum. Be concise. No extra text.\n"
+            "Pick 1-3 agents maximum.\n\n"
+            "=== state_patch schema (include to change state, omit {} to keep unchanged) ===\n"
+            "health_changes: {\"AgentName\": +/-N} — damage (negative) or heal (positive), range -10 to +10\n"
+            "inventory_add: {\"AgentName\": [\"item\"]} — give items\n"
+            "inventory_remove: {\"AgentName\": [\"item\"]} — take items (error if absent)\n"
+            "flags_set: {\"flag_name\": true/false or \"string\"} — set story flags\n"
+            "location: \"New Location\" — change current location (or omit to keep)\n"
+            "active_quest: \"New Quest\" — change quest (or omit to keep)\n"
+            "Keep changes small and dramatic, 0-2 fields per turn. Be concise. No extra text.\n"
         )
+        party_details = [
+            {
+                "agent": m.get("agent"),
+                "name": m.get("name"),
+                "health": m.get("health"),
+                "max_health": m.get("max_health"),
+                "inventory": m.get("inventory", []),
+            }
+            for m in state.get("party", [])
+        ]
         user = {
             "session_id": session_id,
             "action": action,
             "campaign": state.get("campaign", ""),
             "location": state.get("location", ""),
             "active_quest": state.get("active_quest", ""),
-            "party": [m.get("agent") for m in state.get("party", [])],
+            "party": party_details,
             "world_flags": state.get("world_flags", {}),
         }
         result = self.llm.complete(
@@ -322,20 +337,6 @@ class LocalAgentWorkflow:
         except Exception:
             return None
 
-    def _clean_agents(self, agents: Any, intent: str, fallback: list[str]) -> list[str]:
-        party_names = {m["agent"] for m in self.gm.get_state().get("party", [])}
-        allowed = ALLOWED_AGENTS_BY_INTENT.get(intent, set())
-        clean: list[str] = []
-        for agent in agents or []:
-            if (
-                isinstance(agent, str)
-                and agent in party_names
-                and (not allowed or agent in allowed)
-                and agent not in clean
-            ):
-                clean.append(agent)
-        return clean or list(fallback)
-
     def _sanitize_retrieval_query(self, query: Any) -> str:
         if not isinstance(query, str):
             return ""
@@ -348,6 +349,47 @@ class LocalAgentWorkflow:
         if len(tokens) > 12:
             candidate = " ".join(tokens[:12])
         return candidate
+
+    def _sanitize_state_patch(self, patch: dict[str, Any]) -> dict[str, Any]:
+        sanitized: dict[str, Any] = {}
+        party_names = {m["agent"] for m in self.gm.get_state().get("party", [])}
+        allowed_top_keys = {"health_changes", "inventory_add", "inventory_remove", "flags_set", "location", "active_quest"}
+
+        for key, value in patch.items():
+            if key not in allowed_top_keys:
+                continue
+            if key in ("location", "active_quest"):
+                if isinstance(value, str) and value.strip():
+                    sanitized[key] = value.strip()
+            elif key == "health_changes":
+                if not isinstance(value, dict):
+                    continue
+                hc = {}
+                for agent, delta in value.items():
+                    if isinstance(agent, str) and agent in party_names and isinstance(delta, (int, float)):
+                        hc[agent] = max(-10, min(10, int(delta)))
+                if hc:
+                    sanitized[key] = hc
+            elif key in ("inventory_add", "inventory_remove"):
+                if not isinstance(value, dict):
+                    continue
+                inv = {}
+                for agent, items in value.items():
+                    if isinstance(agent, str) and agent in party_names and isinstance(items, list):
+                        valid = [str(i).strip() for i in items if isinstance(i, str) and i.strip()]
+                        if valid:
+                            inv[agent] = valid
+                if inv:
+                    sanitized[key] = inv
+            elif key == "flags_set":
+                if isinstance(value, dict):
+                    flags = {}
+                    for fk, fv in value.items():
+                        if isinstance(fk, str) and isinstance(fv, (bool, str)):
+                            flags[fk] = fv
+                    if flags:
+                        sanitized[key] = flags
+        return sanitized
 
     def _coerce_int(self, value: Any, default: int | None = None) -> int | None:
         try:
@@ -571,8 +613,9 @@ class LocalAgentWorkflow:
         specialist_notes: list[str],
         dice_result: dict | None,
         warnings: list[str],
+        state_patch: dict[str, Any] | None = None,
     ) -> tuple[str, str]:
-        llm_result = self._llm_compose_narration(action, plan, lore, specialist_notes, dice_result, warnings)
+        llm_result = self._llm_compose_narration(action, plan, lore, specialist_notes, dice_result, warnings, state_patch)
         if llm_result is not None:
             setup, outcome = llm_result
             if warnings:
@@ -618,6 +661,7 @@ class LocalAgentWorkflow:
         specialist_notes: list[str],
         dice_result: dict | None,
         warnings: list[str],
+        state_patch: dict[str, Any] | None = None,
     ) -> tuple[str, str] | None:
         if not self.llm.available:
             return None
@@ -640,6 +684,32 @@ class LocalAgentWorkflow:
             if dice_result.get("consequence"):
                 dice_info += f" (consequence: {dice_result['consequence']})"
 
+        state_changes = ""
+        if state_patch:
+            lines = []
+            if "location" in state_patch:
+                lines.append(f"Location changed to {state_patch['location']}")
+            if "active_quest" in state_patch:
+                lines.append(f"Quest updated to {state_patch['active_quest']}")
+            if "health_changes" in state_patch:
+                party_list = state.get("party", [])
+                for agent, delta in state_patch["health_changes"].items():
+                    direction = "damage" if delta < 0 else "healing"
+                    member = next((m for m in party_list if m.get("agent") == agent), None)
+                    hp = member.get("health", "?") if member else "?"
+                    lines.append(f"{agent} takes {abs(delta)} {direction} (now at {hp} HP)")
+            if "inventory_add" in state_patch:
+                for agent, items in state_patch["inventory_add"].items():
+                    lines.append(f"{agent} receives: {', '.join(items)}")
+            if "inventory_remove" in state_patch:
+                for agent, items in state_patch["inventory_remove"].items():
+                    lines.append(f"{agent} loses: {', '.join(items)}")
+            if "flags_set" in state_patch:
+                flag_str = ", ".join(f"{k}={v}" for k, v in state_patch["flags_set"].items())
+                lines.append(f"Flags set: {flag_str}")
+            if lines:
+                state_changes = "\n".join(lines)
+
         system_prompt = (
             "You are the Game Master narrating a fantasy RPG turn.\n"
             "Write TWO paragraphs separated by the exact delimiter: ---PART TWO---\n\n"
@@ -649,7 +719,9 @@ class LocalAgentWorkflow:
             "Part Two (Outcome): The narrative result of the action. Describe what actually happens.\n"
             "Blend any dice result into the story. A success means the action lands well,\n"
             "a failure means complications arise, a partial means mixed results.\n"
-            "If there is no dice, describe a natural consequence of the action.\n\n"
+            "If there is no dice, describe a natural consequence of the action.\n"
+            "Weave the mechanical state changes listed below into the narrative naturally.\n"
+            "Do not list them mechanically; describe them as part of the story.\n\n"
             "Write in present tense, third person. Keep each paragraph to 2-4 sentences.\n"
             "Do not label the parts. Just write them separated by the delimiter."
         )
@@ -670,6 +742,8 @@ class LocalAgentWorkflow:
             user_prompt += f"Agent perspectives:\n" + "\n".join(f"- {l}" for l in note_lines) + "\n\n"
         if dice_info:
             user_prompt += f"Dice result: {dice_info}\n"
+        if state_changes:
+            user_prompt += f"State changes this turn:\n{state_changes}\n"
 
         result = self.llm.complete(
             messages=[
