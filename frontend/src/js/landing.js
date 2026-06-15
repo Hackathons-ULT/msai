@@ -88,10 +88,15 @@ async function loadExistingCampaign(){
     list.appendChild(item);
     item.click();
 
-    // Show continue button if there's an existing active session
+    // Show continue button only if the player has actually made progress
     const btn = document.getElementById('continueBtn');
     const sub = document.getElementById('continueSub');
-    if(btn && state.location){
+    const hasProgress = (
+      Object.keys(state.world_flags || {}).length > 0 ||
+      (state.objectives || []).some(o => o.status === 'done' || o.status === 'failed') ||
+      (state.party || []).some(m => m.health < m.max_health)
+    );
+    if(btn && state.location && hasProgress){
       btn.style.display = 'block';
       if(sub) sub.textContent = '- resume: '+state.location+' / '+(state.active_quest||'?')+' -';
       btn.onclick = () => {
@@ -148,6 +153,8 @@ document.getElementById('startBtn').onclick = async () => {
   try {
     await apiPost('/reset', {campaign: campaignName, location, active_quest: quest, party, world_flags: {}, player_character: myClass});
   } catch {}
+
+  ['warrior','mage','healer','bard','rival'].forEach(k => localStorage.removeItem('ael_power_'+k));
 
   localStorage.setItem('opencode_playerName', name);
   localStorage.setItem('opencode_playerClass', myClass);
