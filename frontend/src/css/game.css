@@ -291,9 +291,23 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .lore-locked .lore-title{color:#b09050;background:#120800;border-left-color:#6a4820;}
 .lore-hint{font-size:0.85em;color:#6a5020;font-style:italic;}
 
+/* Map district states */
+.ael-district { transition: opacity .3s ease; }
+.ael-district .d-fill { transition: fill .3s ease; }
+.ael-current { opacity: 1; }
+.ael-current .d-border { filter: url(#ael-glow); }
+.ael-current .d-accent { opacity: 1; }
+.ael-discovered { opacity: .6; }
+.ael-discovered .d-accent { opacity: 0; }
+.ael-undiscovered { opacity: .22; }
+.ael-undiscovered .d-detail { display: none; }
+.ael-undiscovered .d-accent { opacity: 0; }
+.ael-here { animation: ael-pulse 1.1s ease-in-out infinite; }
+.ael-here-hidden { display: none; }
+@keyframes ael-pulse { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+
 /* Map view */
-#mapBody { padding: 0; overflow: hidden; display:flex; align-items:stretch; justify-content:stretch; background:#0a0806; }
-#mapBody img { display:block; }
+#mapBody { padding: 0; overflow: hidden; }
 
 /* Die intro popup */
 .die-intro-popup{
