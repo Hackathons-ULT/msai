@@ -6,10 +6,22 @@ const AGENT_DESC = {
   rival:'Kael - A smuggler who knows The Sump\'s back routes. His true allegiance is unknown.',
 };
 
+const EFFECT_META = {
+  poisoned:  {color:'#44cc44', label:'POISONED'},
+  stunned:   {color:'#8888ff', label:'STUNNED'},
+  inspired:  {color:'#ffcc44', label:'INSPIRED'},
+  burning:   {color:'#ff6633', label:'BURNING'},
+  shielded:  {color:'#44aaff', label:'SHIELDED'},
+  weakened:  {color:'#cc8844', label:'WEAKENED'},
+  blessed:   {color:'#ffdd88', label:'BLESSED'},
+  cursed:    {color:'#cc44cc', label:'CURSED'},
+};
+
 function renderParty(){
   if(!gameState) return;
   const members = gameState.party || [];
   const activeKey = currentRole;
+  const flags = gameState.world_flags || {};
   let html = '';
   members.forEach(m => {
     const key = m.agent.toLowerCase();
@@ -17,7 +29,7 @@ function renderParty(){
     const STAT_ABBR = {strength:'STR',dexterity:'DEX',constitution:'DEF',intelligence:'INT',wisdom:'WIS',charisma:'CHA'};
     const STAT_TIP = {strength:'Physical power: melee attacks and forced actions',dexterity:'Agility and reflexes: stealth, speed, dodging',constitution:'Toughness: endurance and resistance to harm',intelligence:'Knowledge and reasoning: arcana and investigation',wisdom:'Perception and judgement: awareness and willpower',charisma:'Social force: persuasion, deception and charm'};
     const isRival = key === 'rival';
-    const isRevealed = isRival && gameState.world_flags && gameState.world_flags.kael_revealed;
+    const isRevealed = isRival && flags.kael_revealed;
     const isRivalStats = isRival && isRevealed;
     const statRows = Object.keys(STAT_ABBR).map(s =>
       '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(isRivalStats ? '???' : (m[s]??10))+'</td></tr>'
@@ -29,7 +41,30 @@ function renderParty(){
     const statusLabel = isDead ? '† fallen' : (isLit ? '* active' : (isRival && isRevealed ? '! exposed' : '- standby'));
     const tipText = isDead ? (m.name+' has fallen. Needs revival to act again.') : (AGENT_DESC[key] || '');
     const deadOverlay = isDead ? '<div class="dead-overlay">[FALLEN]</div>' : '';
-    html += '<div class="'+cardCls+'" data-role="'+m.agent+'" data-info="'+tipText+'"><div class="sprite-container" style="position:relative">'+agentSpriteHTML(m.agent)+deadOverlay+'</div><div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
+
+    // Status effect badges from world_flags (e.g. warrior_poisoned, mage_inspired)
+    const effects = Object.entries(EFFECT_META)
+      .filter(([eff]) => flags[key+'_'+eff])
+      .map(([,meta]) => '<span class="effect-badge" style="border-color:'+meta.color+';color:'+meta.color+'">'+meta.label+'</span>')
+      .join('');
+    const effectsRow = '<div class="effects-row">'+effects+'</div>';
+
+    // HP bar on card
+    const hpPct = m.max_health > 0 ? Math.min(100, (m.health / m.max_health) * 100) : 0;
+    const hpColor = hpPct > 60 ? '#44aa22' : hpPct > 30 ? '#cc8822' : '#cc2222';
+    const hpRow = isDead ? '' : '<div class="card-hp-row"><div class="card-hp-bar"><div class="card-hp-fill" style="width:'+hpPct+'%;background:'+hpColor+'"></div></div><span class="card-hp-val">'+m.health+'/'+m.max_health+'</span></div>';
+
+    // XP + level bar
+    const xp = (typeof _sessionXP!=='undefined' && _sessionXP[m.agent]) || 0;
+    const lvl = Math.floor(xp/5)+1;
+    const xpPct = (xp%5)*20;
+    const xpRow = '<div class="xp-row"><div class="xp-bar-wrap"><div class="xp-bar-fill" style="width:'+xpPct+'%"></div></div><div class="xp-label">LVL '+lvl+' ['+(xp%5)+'/5 XP]</div></div>';
+
+    // Inventory (up to 4 items)
+    const inv = (m.inventory||[]).slice(0,4);
+    const invRow = inv.length ? '<div class="inv-row">'+inv.map(i=>'<span class="inv-item">'+i+'</span>').join('')+'</div>' : '';
+
+    html += '<div class="'+cardCls+'" data-role="'+m.agent+'" data-info="'+tipText+'"><div class="sprite-container" style="position:relative">'+agentSpriteHTML(m.agent)+deadOverlay+'</div>'+effectsRow+'<div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div>'+hpRow+'<table class="stat-table">'+statRows+'</table>'+xpRow+invRow+'</div>';
   });
   agentView.innerHTML = html;
   updateHUD();
@@ -62,7 +97,7 @@ function updateHUD(){
       +'<div class="hp-mini"><div class="hp-mini-fill" style="width:'+mp+'%;background:'+(mp>50?'#cc4422':mp>25?'#cc7722':'#882222')+'"></div></div>'
       +'<span class="hp-val">'+m.health+'</span></div>';
   }).join('');
-  hpDisplay.innerHTML = '<div class="hp-label">PARTY HEALTH</div>'+memberBars+'<div class="hp-bar" style="margin-top:4px"><div class="hp-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div><div class="hp-total">'+totalHp+'/'+totalMax+'</div>';
+  hpDisplay.innerHTML = '<div class="hp-label">PARTY HEALTH</div>'+memberBars+'<div class="hp-bar" style="margin-top:4px"><div class="hp-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div><div class="hp-total">TOTAL  '+totalHp+'/'+totalMax+'</div>';
   const locEl = document.getElementById('turnLoc');
   if(locEl) locEl.textContent = (gameState.location || '?').toUpperCase();
   turnText.textContent = gameState.active_quest || '?';
@@ -93,7 +128,10 @@ function renderTrace(traceData){
       if(type === 'agent_intro'||type === 'agent') text = '\u25b6 '+nm2(t.agent)+' ready'+(t.note?' \u2014 '+t.note.slice(0,60):'');
       else if(type === 'agent_action') text = '\u25b6 '+nm2(t.agent)+': '+(t.action||'');
       else if(type === 'agent_followup') text = '\u25b6 '+nm2(t.agent)+': '+(t.action||t.text||'');
-      else if(type === 'planner'||type === 'plan') text = '[>] PLAN: intent='+(t.intent||t.text||'?')+(t.agents?' agents='+t.agents:'');
+      else if(type === 'planner'||type === 'plan') {
+        const agts = Array.isArray(t.agents) ? t.agents.map(a=>nm2(a)).join(', ') : (t.agents||'');
+        text = '[>] PLAN: intent='+(t.intent||t.text||'?')+(agts?' agents='+agts:'');
+      }
       else if(type === 'retrieval'||type === 'lore') text = '[W] LORE SEARCH: '+(t.query||t.text||'');
       else if(type === 'narration_setup') text = '\u270e SETUP: '+(t.text||'');
       else if(type === 'narration_outcome') text = '\u270e OUTCOME: '+(t.text||'');
