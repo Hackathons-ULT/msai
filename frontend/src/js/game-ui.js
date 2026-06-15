@@ -31,9 +31,15 @@ function renderParty(){
     const isRival = key === 'rival';
     const isRevealed = isRival && flags.kael_revealed;
     const isRivalStats = isRival && isRevealed;
+    const lvlUp = (typeof _levelUpPending !== 'undefined') && _levelUpPending[key];
     const statRows = Object.keys(STAT_ABBR).map(s =>
-      '<tr class="st-row" data-tip="'+STAT_TIP[s]+'"><td class="st-name">'+STAT_ABBR[s]+'</td><td class="st-val">'+(isRivalStats ? '???' : (m[s]??10))+'</td></tr>'
-    ).join('');
+      '<tr class="st-row" data-tip="'+STAT_TIP[s]+'">'
+      +'<td class="st-name">'+STAT_ABBR[s]+'</td>'
+      +'<td class="st-val">'+(isRivalStats ? '???' : (m[s]??10))+'</td>'
+      +(lvlUp ? '<td class="st-boost"><button class="boost-btn" onclick="applyStatBoost(\''+m.agent+'\',\''+s+'\')">+1</button></td>' : '')
+      +'</tr>'
+    ).join('')
+    + (lvlUp ? '<tr class="st-row"><td class="st-name">HP</td><td class="st-val">'+m.health+'/'+m.max_health+'</td><td class="st-boost"><button class="boost-btn boost-hp" onclick="applyStatBoost(\''+m.agent+'\',\'max_health\')">+2</button></td></tr>' : '');
     const isDead = m.health <= 0;
     const cardCls = 'agent-card'+(isLit?' lit':'')+(isRival && isRevealed?' rival-card':'')+(isDead?' dead-card':'');
     const displayName = m.name.toUpperCase();
@@ -64,7 +70,8 @@ function renderParty(){
     const inv = (m.inventory||[]).slice(0,4);
     const invRow = inv.length ? '<div class="inv-row">'+inv.map(i=>'<span class="inv-item">'+i+'</span>').join('')+'</div>' : '';
 
-    html += '<div class="'+cardCls+'" data-role="'+m.agent+'" data-info="'+tipText+'"><div class="sprite-container" style="position:relative">'+agentSpriteHTML(m.agent)+deadOverlay+'</div>'+effectsRow+'<div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div>'+hpRow+'<table class="stat-table">'+statRows+'</table>'+xpRow+invRow+'</div>';
+    const lvlBanner = lvlUp ? '<div class="lvlup-banner">LEVEL UP - PICK A STAT</div>' : '';
+    html += '<div class="'+cardCls+(lvlUp?' lvlup-card':'')+'" data-role="'+m.agent+'" data-info="'+tipText+'"><div class="sprite-container" style="position:relative">'+agentSpriteHTML(m.agent)+deadOverlay+'</div>'+lvlBanner+effectsRow+'<div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div>'+hpRow+'<table class="stat-table">'+statRows+'</table>'+xpRow+invRow+'</div>';
   });
   agentView.innerHTML = html;
   updateHUD();
