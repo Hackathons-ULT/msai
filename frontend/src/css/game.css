@@ -82,9 +82,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 }
 
 .agent-view{position:relative;z-index:1;flex:1;min-height:0;display:flex;gap:clamp(12px,1.5vw,28px);align-items:center;justify-content:center;padding:clamp(8px,1vw,20px) clamp(12px,1.5vw,28px);width:100%;box-sizing:border-box;flex-wrap:wrap;overflow-y:auto;}
+.agent-info-bar{
+  display:none;width:100%;box-sizing:border-box;flex-shrink:0;
+  background:#1a1208;border-top:1px solid #4a3010;
+  padding:clamp(4px,0.4vw,7px) clamp(10px,1vw,16px);
+  font-size:clamp(5px,0.48vw,8px);color:#c8a860;line-height:1.7;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.agent-info-bar.visible{display:block;}
 .agent-card{display:flex;flex-direction:column;align-items:center;gap:clamp(4px,0.4vw,8px);flex-shrink:0;position:relative;}
-.agent-card[data-tip]:hover::after{content:attr(data-tip);position:absolute;top:50%;left:calc(100% + 10px);transform:translateY(-50%);background:#1a1208;border:1px solid #8a6030;color:#d4bc82;font-size:clamp(5px,0.5vw,7px);padding:6px 8px;border-radius:2px;white-space:normal;width:clamp(120px,14vw,180px);text-align:left;line-height:1.7;z-index:100;pointer-events:none;}
-.agent-card[data-tip]:hover::before{content:'';position:absolute;top:50%;left:calc(100% + 4px);transform:translateY(-50%);border:5px solid transparent;border-right-color:#8a6030;z-index:101;pointer-events:none;}
 .agent-card .sprite-container{line-height:0;}
 .agent-card .sprite-container svg,.agent-card .sprite-container img{width:clamp(70px,10vw,130px);height:clamp(90px,13vw,170px);image-rendering:pixelated;}
 .agent-lbl{

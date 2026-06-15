@@ -27,10 +27,16 @@ function renderParty(){
     const displayRole = isRival ? (isRevealed ? 'RIVAL' : 'SMUGGLER') : m.agent.toUpperCase();
     const statusLabel = isLit ? '* active' : (isRival && isRevealed ? '! exposed' : '- standby');
     const tipText = AGENT_DESC[key] || '';
-    html += '<div class="'+cardCls+'" data-role="'+m.agent+'" data-tip="'+tipText+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
+    html += '<div class="'+cardCls+'" data-role="'+m.agent+'" data-info="'+tipText+'"><div class="sprite-container">'+agentSpriteHTML(m.agent)+'</div><div class="agent-lbl">'+displayName+'<span>'+displayRole+' '+statusLabel+'</span></div><table class="stat-table">'+statRows+'</table></div>';
   });
   agentView.innerHTML = html;
   updateHUD();
+  const infoBar = document.getElementById('agentInfoBar');
+  agentView.addEventListener('mouseover', e => {
+    const card = e.target.closest('.agent-card');
+    if(card && card.dataset.info && infoBar){ infoBar.textContent = card.dataset.info; infoBar.classList.add('visible'); }
+  });
+  agentView.addEventListener('mouseleave', () => { if(infoBar) infoBar.classList.remove('visible'); });
   agentView.onclick = (e) => {
     const card = e.target.closest('.agent-card');
     if(!card) return;
