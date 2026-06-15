@@ -34,7 +34,7 @@ DEFAULT_STATE = GameState(
     location="The Sump",
     active_quest="Investigate the Clockwork Plague",
     party=[
-        apply_class_stats(PartyMember(agent="Warrior", name="Jax", health=20)),
+        apply_class_stats(PartyMember(agent="Warrior", name="Jax", health=20, inventory=["Iron Club"])),
         apply_class_stats(PartyMember(agent="Mage", name="Lyra", health=16, inventory=["Staff"])),
         apply_class_stats(PartyMember(agent="Healer", name="Bram", health=18, inventory=["Medkit"])),
         apply_class_stats(PartyMember(agent="Bard", name="Seren", health=16, inventory=["Lute"])),
@@ -55,11 +55,11 @@ workflow = LocalAgentWorkflow(gm, lore_retriever=build_lore_retriever())
 
 
 class ResetRequest(BaseModel):
-    campaign: str = "The Lost Sigil"
-    location: str = "Whispering Woods"
-    active_quest: str = "Find the ancient artifact"
+    campaign: str = "The Smog of Aethelgard"
+    location: str = "The Sump"
+    active_quest: str = "Investigate the Clockwork Plague"
     party: List[dict] = [
-        {"agent": "Warrior", "name": "Jax", "health": 20, "max_health": 20, "inventory": []},
+        {"agent": "Warrior", "name": "Jax", "health": 20, "max_health": 20, "inventory": ["Iron Club"]},
         {"agent": "Mage", "name": "Lyra", "health": 16, "max_health": 20, "inventory": ["Staff"]},
         {"agent": "Healer", "name": "Bram", "health": 18, "max_health": 20, "inventory": ["Medkit"]},
         {"agent": "Bard", "name": "Seren", "health": 16, "max_health": 20, "inventory": ["Lute"]},
@@ -67,9 +67,13 @@ class ResetRequest(BaseModel):
     ]
     world_flags: Dict[str, Union[bool, str]] = {}
     player_character: str = "Warrior"
-    campaign: str = "The Smog of Aethelgard"
-    location: str = "The Sump"
-    active_quest: str = "Investigate the Clockwork Plague"
+    objectives: List[dict] = [
+        {"id": "main",     "text": "Investigate the Clockwork Plague",   "status": "active"},
+        {"id": "sector04", "text": "Locate the Sector-04 Pressure Core", "status": "todo"},
+        {"id": "brass",    "text": "Retrieve the Brass Cylinder",        "status": "todo"},
+        {"id": "culprit",  "text": "Uncover who caused the Plague",      "status": "todo"},
+        {"id": "spire",    "text": "Reach the Upper-Spire",              "status": "todo"},
+    ]
 
 
 class TurnRequest(BaseModel):
@@ -178,6 +182,7 @@ def reset_game(body: ResetRequest):
             party=party,
             world_flags=dict(body.world_flags),
             player_character=body.player_character,
+            objectives=list(body.objectives),
         )
     )
     workflow = LocalAgentWorkflow(gm, lore_retriever=build_lore_retriever())
