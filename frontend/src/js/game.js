@@ -7,6 +7,7 @@ let dieEverRolled = false;
 let _prevPartyHp = {};
 let _savedNarration = null;
 let _sessionXP = {};
+let _levelUpPending = {};
 let _turnCount = 0;
 
 // -- XP / Leveling --
@@ -20,12 +21,30 @@ function gainXP(agent, amount){
   const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===agent);
   const name = mem ? mem.name : agent;
   if(newLvl > prevLvl){
-    showToast('[+] '+name+' reached LEVEL '+newLvl+'!', '#f0c060');
+    _levelUpPending[agent.toLowerCase()] = true;
+    showToast('[+] '+name+' LEVEL UP! Choose a stat to boost.', '#f0c060');
     try { _sfx.success(); setTimeout(()=>_sfx.success(),220); } catch {}
-    appendNarration('<br><br><span style="color:#f0c060">[ LEVEL UP ] '+name+' advances to level '+newLvl+'. One step stronger.</span>');
+    appendNarration('<br><br><span style="color:#f0c060">[ LEVEL UP ] '+name+' advances to level '+newLvl+'. Choose a stat to improve on their card.</span>');
   }
   renderParty();
 }
+
+async function applyStatBoost(agentKey, stat){
+  try {
+    const delta = stat === 'max_health' ? 2 : 1;
+    const newState = await fetch(API_BASE+'/boost', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({agent: agentKey, stat, delta})
+    }).then(r => r.json());
+    delete _levelUpPending[agentKey.toLowerCase()];
+    gameState = newState;
+    renderParty();
+    const label = stat === 'max_health' ? 'MAX HP +2' : stat.substring(0,3).toUpperCase()+' +1';
+    showToast('[+] '+agentKey.toUpperCase()+' — '+label+'!', '#44cc88');
+    try { _sfx.success(); } catch {}
+  } catch(e){ showToast('[!] Boost failed'); }
+}
+window.applyStatBoost = applyStatBoost;
 
 // -- Party Banter --
 const _BANTER = {
