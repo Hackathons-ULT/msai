@@ -498,6 +498,32 @@ async function checkIntro(){
   return false;
 }
 
+// -- Objectives --
+const STATUS_ICON = { active:'[*]', todo:'[ ]', done:'[X]', failed:'[!]' };
+let objOpen = false;
+
+function renderObjectives(){
+  const panel = document.getElementById('objPanel');
+  const toggle = document.getElementById('objToggle');
+  if(!panel) return;
+  const objs = (gameState && gameState.objectives) || [];
+  if(!objs.length){ panel.classList.remove('open'); return; }
+  const doneCount = objs.filter(o=>o.status==='done').length;
+  if(toggle) toggle.textContent = '['+doneCount+'/'+objs.length+']';
+  if(!objOpen){ panel.classList.remove('open'); return; }
+  panel.innerHTML = objs.map(o=>{
+    const s = o.status||'todo';
+    return '<div class="obj-row obj-'+s+'"><span class="obj-icon">'+STATUS_ICON[s]+'</span>'+o.text+'</div>';
+  }).join('');
+  panel.classList.add('open');
+}
+
+function toggleObjectives(){
+  objOpen = !objOpen;
+  renderObjectives();
+}
+window.toggleObjectives = toggleObjectives;
+
 async function initGame(){
   playerName = localStorage.getItem('opencode_playerName') || 'Adventurer';
   playerClass = localStorage.getItem('opencode_playerClass') || 'Warrior';

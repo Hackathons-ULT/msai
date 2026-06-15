@@ -26,11 +26,13 @@
     </div>
 
     <div class="stage" id="stage">
-      <div class="turn-tag" id="turnTag">
+      <div class="turn-tag" id="turnTag" onclick="toggleObjectives()">
         <span class="turn-tag-label">[!] OBJECTIVE</span>
         <span class="turn-tag-loc" id="turnLoc">THE SUMP</span>
         <span class="turn-tag-quest" id="turnText">LOADING...</span>
+        <span class="turn-tag-toggle" id="objToggle">[+]</span>
       </div>
+      <div class="obj-panel" id="objPanel"></div>
 
       <div class="agent-view" id="agentView"></div>
 

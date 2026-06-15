@@ -110,3 +110,13 @@ body{
 .start-btn:hover:not(:disabled){background:#8a6a3a;color:#ffd880;}
 .start-btn:disabled{opacity:0.4;cursor:not-allowed;border-color:#6a5530;color:#8a7050;}
 .start-btn .sub{display:block;font-size:clamp(4px,0.5vw,7px);color:#9a7a48;margin-top:4px;letter-spacing:0;}
+.continue-btn{
+  display:block;width:100%;margin-top:8px;margin-bottom:4px;
+  background:#0e2818;border:2px solid #40a840;border-radius:2px;
+  padding:clamp(10px,1.2vw,16px);font-size:clamp(8px,0.9vw,13px);
+  color:#60d060;cursor:pointer;text-align:center;
+  font-family:'Press Start 2P',monospace;letter-spacing:2px;
+  transition:background 0.12s,color 0.12s;
+}
+.continue-btn:hover{background:#1a3a1a;color:#90f090;}
+.continue-btn .sub{display:block;font-size:clamp(4px,0.5vw,7px);color:#409040;margin-top:4px;letter-spacing:0;}

@@ -87,6 +87,22 @@ async function loadExistingCampaign(){
     };
     list.appendChild(item);
     item.click();
+
+    // Show continue button if there's an existing active session
+    const btn = document.getElementById('continueBtn');
+    const sub = document.getElementById('continueSub');
+    if(btn && state.location){
+      btn.style.display = 'block';
+      if(sub) sub.textContent = '- resume: '+state.location+' / '+(state.active_quest||'?')+' -';
+      btn.onclick = () => {
+        localStorage.setItem('opencode_playerName', document.getElementById('charName').value.trim() || (state.player_character || 'Adventurer'));
+        localStorage.setItem('opencode_playerClass', state.player_character || 'Warrior');
+        localStorage.setItem('opencode_campaign', state.campaign || '');
+        localStorage.setItem('opencode_location', state.location || '');
+        localStorage.setItem('opencode_quest', state.active_quest || '');
+        window.location.href = 'game.html';
+      };
+    }
   } catch {
     list.innerHTML = '<div class="error-text">\u26A0 Backend unreachable</div>';
   }

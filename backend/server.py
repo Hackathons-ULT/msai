@@ -41,6 +41,13 @@ DEFAULT_STATE = GameState(
         apply_class_stats(PartyMember(agent="Rival", name="Kael", health=20, inventory=["Hidden Blade"])),
     ],
     player_character="Warrior",
+    objectives=[
+        {"id": "main",     "text": "Investigate the Clockwork Plague",   "status": "active"},
+        {"id": "sector04", "text": "Locate the Sector-04 Pressure Core", "status": "todo"},
+        {"id": "brass",    "text": "Retrieve the Brass Cylinder",        "status": "todo"},
+        {"id": "culprit",  "text": "Uncover who caused the Plague",      "status": "todo"},
+        {"id": "spire",    "text": "Reach the Upper-Spire",              "status": "todo"},
+    ],
 )
 
 gm = GameManager(state=GameState.from_dict(DEFAULT_STATE.to_dict()))

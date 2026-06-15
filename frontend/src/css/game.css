@@ -112,6 +112,27 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .turn-tag-loc{color:#7a5a2a;flex-shrink:0;}
 .turn-tag-quest{color:#d4b060;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .turn-tag-quest::before{content:'[ ] ';color:#5a4020;}
+.turn-tag-toggle{color:#6a4820;flex-shrink:0;cursor:pointer;margin-left:auto;}
+.turn-tag{cursor:pointer;}
+.turn-tag:hover .turn-tag-toggle{color:#c8922a;}
+
+.obj-panel{
+  display:none;width:100%;box-sizing:border-box;
+  background:#110e06;border-bottom:2px solid #4a3010;
+  padding:clamp(4px,0.4vw,8px) clamp(8px,0.9vw,14px);
+  flex-shrink:0;
+}
+.obj-panel.open{display:flex;flex-direction:column;gap:clamp(3px,0.3vw,6px);}
+.obj-row{display:flex;align-items:center;gap:clamp(5px,0.5vw,10px);font-size:clamp(5px,0.48vw,8px);line-height:1.6;}
+.obj-icon{flex-shrink:0;font-size:clamp(5px,0.5vw,8px);}
+.obj-active{color:#f0d060;}
+.obj-active .obj-icon{color:#c8922a;}
+.obj-todo{color:#4a3818;opacity:0.7;}
+.obj-todo .obj-icon{color:#4a3818;}
+.obj-done{color:#40a840;}
+.obj-done .obj-icon{color:#40a840;}
+.obj-failed{color:#cc3333;}
+.obj-failed .obj-icon{color:#cc3333;}
 .dot{display:inline-block;width:clamp(4px,0.35vw,6px);height:clamp(4px,0.35vw,6px);background:#c8922a;border-radius:50%;margin-right:3px;vertical-align:middle;animation:blink 1s step-end infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
 

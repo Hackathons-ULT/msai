@@ -59,6 +59,7 @@ function updateHUD(){
   if(locEl) locEl.textContent = (gameState.location || '?').toUpperCase();
   turnText.textContent = gameState.active_quest || '?';
   renderRecap();
+  if(typeof renderObjectives === 'function') renderObjectives();
   if(typeof checkEndConditions === 'function') checkEndConditions();
 }
 
