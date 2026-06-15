@@ -19,6 +19,7 @@ from src.retrieval import build_lore_retriever
 
 BASE_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = BASE_DIR / "assets"
+FRONTEND_DIR = BASE_DIR.parent / "frontend" / "src"
 
 app = FastAPI(title="MSAI RPG Backend")
 
@@ -81,6 +82,7 @@ class UpdateRequest(BaseModel):
 
 
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 
 @app.get("/character-types")
