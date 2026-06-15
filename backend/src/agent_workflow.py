@@ -435,7 +435,7 @@ class LocalAgentWorkflow:
                 seen.add(agent)
                 deduped.append(agent)
         if not deduped:
-            deduped = list(party_names)[:1] if party_names else ["Warrior"]
+            deduped = list(party_alive)[:1] if party_alive else ["Warrior"]
         return deduped
 
     def _build_retrieval_query(self, action: str, intent: str) -> str:
@@ -743,7 +743,7 @@ class LocalAgentWorkflow:
             f"Campaign: {state.get('campaign', '?')}\n"
             f"Location: {state.get('location', '?')}\n"
             f"Active Quest: {state.get('active_quest', 'none')}\n"
-            f"Party health: {', '.join(f\"{m.get('name', m.get('agent'))} HP {m.get('health', 0)}/{m.get('max_health', 20)}\" for m in state.get('party', []))}\n"
+            f"Party health: {', '.join(m.get('name', m.get('agent')) + ' HP ' + str(m.get('health', 0)) + '/' + str(m.get('max_health', 20)) for m in state.get('party', []))}\n"
             f"Party: {', '.join(f'{n} ({a})' for n, a in zip(party_names, party_agents))}\n"
             f"Player Character: {state.get('player_character', 'the hero')}\n\n"
             f"Player action: \"{action}\"\n"
