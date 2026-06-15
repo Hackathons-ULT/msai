@@ -258,7 +258,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 
 /* Lore entries */
 .lore-entry{margin-bottom:16px;line-height:1.9;}
-.lore-title{color:#f0d888;background:#1e0e02;padding:2px 8px 2px 6px;margin-bottom:6px;letter-spacing:1px;border-left:3px solid #c8922a;display:inline-block;}
+.lore-title{color:#f0d888;background:#1e0e02;padding:2px 8px 2px 6px;margin-bottom:8px;letter-spacing:1px;border-left:3px solid #c8922a;display:block;width:fit-content;}
 .lore-sep{color:#4a3010;font-size:0.85em;margin:10px 0 8px;border-top:1px solid #8a6030;padding-top:8px;letter-spacing:1px;}
 .lore-locked{opacity:0.45;}
 .lore-locked .lore-title{color:#b09050;background:#120800;border-left-color:#6a4820;}

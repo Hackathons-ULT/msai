@@ -604,3 +604,85 @@ const _sfx = (function(){
 
 const _origSendAct = sendAct;
 window.sendAct = function(){ _sfx.send(); _origSendAct(); };
+
+// -- Ambient background music (starts on first interaction) --
+const _bgm = (function(){
+  let ctx = null, started = false, masterGain = null;
+  function init(){
+    if(started) return;
+    started = true;
+    try {
+      ctx = new (window.AudioContext||window.webkitAudioContext)();
+      masterGain = ctx.createGain();
+      masterGain.gain.value = 0;
+      masterGain.connect(ctx.destination);
+      // Fade in over 4 seconds
+      masterGain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 4);
+
+      // Low industrial bass drone
+      const bass = ctx.createOscillator();
+      const bassGain = ctx.createGain();
+      bass.type = 'sine'; bass.frequency.value = 55;
+      bassGain.gain.value = 0.5;
+      bass.connect(bassGain); bassGain.connect(masterGain);
+      bass.start();
+
+      // Mid hum layer (slight detune for thickness)
+      const mid = ctx.createOscillator();
+      const midGain = ctx.createGain();
+      mid.type = 'sine'; mid.frequency.value = 110.4;
+      midGain.gain.value = 0.25;
+      mid.connect(midGain); midGain.connect(masterGain);
+      mid.start();
+
+      // Slow LFO wobble on bass
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.type = 'sine'; lfo.frequency.value = 0.12;
+      lfoGain.gain.value = 3;
+      lfo.connect(lfoGain); lfoGain.connect(bass.frequency);
+      lfo.start();
+
+      // Rhythmic steam pulse (every ~2.4s)
+      function steamPulse(){
+        if(!ctx) return;
+        try {
+          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.18, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*0.6;
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0, ctx.currentTime);
+          g.gain.linearRampToValueAtTime(0.06, ctx.currentTime+0.04);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.18);
+          const filt = ctx.createBiquadFilter();
+          filt.type = 'bandpass'; filt.frequency.value = 1200; filt.Q.value = 0.8;
+          src.connect(filt); filt.connect(g); g.connect(masterGain);
+          src.start();
+        } catch {}
+        setTimeout(steamPulse, 2200 + Math.random()*800);
+      }
+      setTimeout(steamPulse, 3000);
+
+      // Slow clock-tick rhythm
+      function tick(){
+        if(!ctx) return;
+        try {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'square'; o.frequency.value = 800;
+          g.gain.setValueAtTime(0.03, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.04);
+          o.connect(g); g.connect(masterGain);
+          o.start(); o.stop(ctx.currentTime+0.04);
+        } catch {}
+        setTimeout(tick, 1800 + Math.random()*400);
+      }
+      setTimeout(tick, 1500);
+    } catch {}
+  }
+  return { init };
+})();
+
+// Start BGM on first user interaction
+document.addEventListener('click', function startBGM(){ _bgm.init(); document.removeEventListener('click', startBGM); }, {once:true});
