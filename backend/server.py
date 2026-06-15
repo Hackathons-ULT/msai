@@ -162,6 +162,27 @@ def clear_trace():
     return {"status": "ok"}
 
 
+class BoostRequest(BaseModel):
+    agent: str
+    stat: str
+    delta: int = 1
+
+
+@app.post("/boost")
+def boost_stat(body: BoostRequest):
+    allowed = {"strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma", "max_health"}
+    if body.stat not in allowed:
+        return {"error": f"Stat {body.stat} not allowed"}
+    member = gm.state.get_party_member(body.agent)
+    if not member:
+        return {"error": f"Agent {body.agent} not found"}
+    current = getattr(member, body.stat, 0)
+    setattr(member, body.stat, current + body.delta)
+    if body.stat == "max_health":
+        member.health = min(member.health + body.delta, member.max_health)
+    return gm.get_state()
+
+
 @app.get("/intro")
 def get_intro():
     text = workflow.pop_intro()
