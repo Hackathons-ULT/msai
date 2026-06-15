@@ -4,6 +4,154 @@ let playerName = '';
 let playerClass = '';
 let dieRolling = false;
 let dieEverRolled = false;
+let _prevPartyHp = {};
+let _savedNarration = null;
+let _sessionXP = {};
+let _turnCount = 0;
+
+// -- XP / Leveling --
+function gainXP(agent, amount){
+  if(!agent || amount <= 0) return;
+  if(!_sessionXP[agent]) _sessionXP[agent] = 0;
+  const prev = _sessionXP[agent];
+  _sessionXP[agent] += amount;
+  const prevLvl = Math.floor(prev/5)+1;
+  const newLvl = Math.floor(_sessionXP[agent]/5)+1;
+  const mem = gameState&&gameState.party&&gameState.party.find(m=>m.agent===agent);
+  const name = mem ? mem.name : agent;
+  if(newLvl > prevLvl){
+    showToast('[+] '+name+' reached LEVEL '+newLvl+'!', '#f0c060');
+    try { _sfx.success(); setTimeout(()=>_sfx.success(),220); } catch {}
+    appendNarration('<br><br><span style="color:#f0c060">[ LEVEL UP ] '+name+' advances to level '+newLvl+'. One step stronger.</span>');
+  }
+  renderParty();
+}
+
+// -- Party Banter --
+const _BANTER = {
+  healer:[
+    'Bram wraps a fresh bandage around his arm, muttering a ward against infection.',
+    '"The wounded heal faster when they believe," he says quietly.',
+    'He notes something in a small leather journal.',
+    '"If this keeps up, I\'ll run out of gauze before we run out of trouble," he mutters.',
+  ],
+  bard:[
+    'Seren plucks a single chord, lets it hang in the air.',
+    '"Every story has a turning point," she murmurs. "I think this might be ours."',
+    'She hums something old - a tune from before the Plague.',
+    '"I\'ve written worse into songs. This one might actually have a good ending."',
+  ],
+  mage:[
+    'Lyra traces a rune in the air, then dismisses it with a wave.',
+    '"The arcane resonance in this district is wrong," she says, frowning at her notes.',
+    'She flips to a dog-eared page and underlines something twice.',
+    '"We\'re dealing with something deliberate here. Someone designed this."',
+  ],
+  warrior:[
+    'He rolls his shoulders, scanning the perimeter without thinking.',
+    '"Staying sharp," he says, to no one in particular.',
+    'He flicks a coin and catches it without looking up.',
+    '"Tell me when there\'s something to hit. I\'m getting restless."',
+  ],
+  rival:[
+    'He leans against the wall, expression unreadable.',
+    'His eyes flick to the exits - old habit.',
+    '"Could be worse," he says flatly.',
+    'He says nothing. But he\'s listening.',
+  ],
+};
+let _lastFollowupAgents = new Set();
+
+function tryBanter(){
+  _turnCount++;
+  if(_turnCount % 3 !== 0 || !gameState) return;
+  // Only banter from members who didn't already speak in followups this turn
+  const others = (gameState.party||[]).filter(m =>
+    m.health > 0 &&
+    m.agent.toLowerCase() !== currentRole &&
+    !_lastFollowupAgents.has(m.agent.toLowerCase())
+  );
+  if(!others.length) return;
+  const m = others[Math.floor(Math.random()*others.length)];
+  const pool = _BANTER[m.agent.toLowerCase()]||[];
+  if(!pool.length) return;
+  const line = pool[_turnCount % pool.length];
+  setTimeout(()=>{
+    appendNarration('<br><br><em style="color:#8a7a60">'+m.name+': '+line+'</em>');
+  }, 3200);
+}
+
+// -- Random Travel Events --
+const _TRAVEL_EVENTS = [
+  'A steam pipe bursts nearby - the party ducks as scalding vapour fills the corridor.',
+  'A beggar presses a crumpled note into the nearest hand and vanishes into the crowd.',
+  'The city shudders - something deep in the grid just failed. Lights flicker.',
+  'A patrol of Engineers passes overhead on the elevated walkway, ignoring the street below.',
+  'A feral automaton staggers from an alley, gears grinding, before collapsing.',
+  'Someone in a hooded cloak watches from across the way, then disappears when noticed.',
+  'The smell of chemicals gets sharper here - the Plague is closer than expected.',
+  'A distant explosion echoes from the lower districts. Nobody reacts. That\'s the new normal.',
+];
+function tryTravelEvent(intent){
+  if(intent !== 'travel' && intent !== 'stealth') return;
+  if(Math.random() > 0.45) return;
+  const line = _TRAVEL_EVENTS[Math.floor(Math.random()*_TRAVEL_EVENTS.length)];
+  setTimeout(()=>{
+    appendNarration('<br><br><em style="color:#6a5030">[ As the party moves - '+line+' ]</em>');
+    showToast('[!] Something happened...', '#8a6030');
+  }, 1800);
+}
+
+// -- Save / Load --
+async function saveGame(){
+  try {
+    const state = await apiGet('/state');
+    const blob = new Blob([JSON.stringify({
+      state,
+      playerName: localStorage.getItem('opencode_playerName'),
+      playerClass: localStorage.getItem('opencode_playerClass'),
+      xp: _sessionXP,
+      savedAt: new Date().toISOString(),
+    }, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'aethelgard_save.json';
+    a.click();
+    showToast('[S] Game saved.', '#44aa66');
+  } catch(e){ showToast('[!] Save failed: '+e.message); }
+}
+async function loadGame(){
+  const input = document.createElement('input');
+  input.type='file'; input.accept='.json';
+  input.onchange = async(e) => {
+    const file = e.target.files[0]; if(!file) return;
+    try {
+      const save = JSON.parse(await file.text());
+      const s = save.state;
+      await apiPost('/reset',{campaign:s.campaign,location:s.location,active_quest:s.active_quest,party:s.party,world_flags:s.world_flags||{},player_character:s.player_character||(save.playerClass||'Warrior'),objectives:s.objectives||[]});
+      if(save.playerName) localStorage.setItem('opencode_playerName',save.playerName);
+      if(save.playerClass) localStorage.setItem('opencode_playerClass',save.playerClass);
+      if(save.xp) _sessionXP = save.xp;
+      showToast('[S] Save loaded!', '#44aa66');
+      gameState = await apiGet('/state');
+      renderParty(); renderMap(); renderSuggestions();
+    } catch(e){ showToast('[!] Load failed: '+e.message); }
+  };
+  input.click();
+}
+window.saveGame = saveGame;
+window.loadGame = loadGame;
+
+function _saveAndShowHelp(helpHtml){
+  // Don't save the loading/confer state - only real GM narration is worth restoring
+  const cur = narrText.innerHTML;
+  if(!_savedNarration && !cur.includes('the agents confer')) _savedNarration = cur;
+  narrText.innerHTML = helpHtml;
+  pInput.addEventListener('focus', function restoreNarr(){
+    if(_savedNarration){ narrText.innerHTML = _savedNarration; _savedNarration = null; }
+    pInput.removeEventListener('focus', restoreNarr);
+  }, { once: true });
+}
 const dieMax = 20;
 let lastDieRoll = 20;
 let lastDieTotal = 20;
@@ -87,91 +235,75 @@ function _mapKeyFor(s){
   return m[t] || t.replace(/\s+/g,'-');
 }
 
-const _MAP_SVG = `<svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:320px;display:block;">
+const _MAP_SVG = `<svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style="background:#0a0806">
   <defs>
-    <filter id="ael-glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="3" result="b"/>
+    <filter id="ael-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
-  <rect x="0" y="0" width="520" height="320" fill="#0a0806"/>
-  <g fill="#cfc8a8">
-    <circle cx="40" cy="16" r="1.2"/><circle cx="95" cy="10" r="1"/><circle cx="150" cy="20" r="1.4"/>
-    <circle cx="210" cy="12" r="1"/><circle cx="265" cy="22" r="1.2"/><circle cx="320" cy="9" r="1.3"/>
-    <circle cx="360" cy="18" r="1"/><circle cx="70" cy="28" r="1"/><circle cx="290" cy="30" r="1"/>
-    <circle cx="180" cy="32" r="1.1"/><circle cx="120" cy="38" r="1"/><circle cx="340" cy="34" r="1.2"/>
-  </g>
+
+  <!-- Map PNG fills full width -->
+  <image href="${API_BASE}/assets/map.png" x="0" y="0" width="520" height="320" preserveAspectRatio="xMidYMid slice"/>
+
+  <!-- District fog/glow overlays — full width -->
   <g class="ael-district" data-key="upper-spire">
-    <rect class="d-accent" x="27" y="46" width="3" height="40" fill="#9a7bd6"/>
-    <rect class="d-fill d-border" x="30" y="46" width="330" height="40" fill="#1c1630" stroke="#9a7bd6" stroke-width="1.5" rx="2"/>
-    <g class="d-detail" fill="#3a2e5c" stroke="#9a7bd6" stroke-width="0.6">
-      <path d="M70 84 L82 54 L94 84 Z"/><path d="M150 84 L165 50 L180 84 Z"/>
-      <path d="M250 84 L262 56 L274 84 Z"/><path d="M310 84 L322 52 L334 84 Z"/>
-    </g>
-    <text class="d-label" x="40" y="70" fill="#e8e2d0" font-size="8" font-family="monospace">UPPER-SPIRE</text>
-    <text class="ael-here ael-here-hidden" x="200" y="70" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+    <rect class="d-fog" x="0" y="0" width="520" height="46" fill="#0a0806" opacity="0.86"/>
+    <rect class="d-glow-border" x="1" y="1" width="518" height="44" fill="rgba(154,123,214,0.08)" stroke="#9a7bd6" stroke-width="2" rx="1"/>
+    <text class="d-label" x="10" y="30" fill="#9a7bd6" font-size="7" font-family="monospace">UPPER-SPIRE</text>
+    <text class="ael-here ael-here-hidden" x="260" y="30" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
   </g>
   <g class="ael-district" data-key="zenith-wards">
-    <rect class="d-accent" x="27" y="90" width="3" height="40" fill="#4f9fe0"/>
-    <rect class="d-fill d-border" x="30" y="90" width="330" height="40" fill="#10202e" stroke="#4f9fe0" stroke-width="1.5" rx="2"/>
-    <g class="d-detail" fill="#1d4663" stroke="#4f9fe0" stroke-width="0.5">
-      <rect x="70" y="100" width="14" height="22"/><rect x="92" y="100" width="14" height="22"/>
-      <rect x="114" y="100" width="14" height="22"/><rect x="250" y="100" width="14" height="22"/>
-      <rect x="272" y="100" width="14" height="22"/><rect x="294" y="100" width="14" height="22"/>
-    </g>
-    <text class="d-label" x="40" y="114" fill="#e8e2d0" font-size="8" font-family="monospace">ZENITH WARDS</text>
-    <text class="ael-here ael-here-hidden" x="200" y="114" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+    <rect class="d-fog" x="0" y="46" width="520" height="74" fill="#0a0806" opacity="0.84"/>
+    <rect class="d-glow-border" x="1" y="47" width="518" height="72" fill="rgba(79,159,224,0.06)" stroke="#4f9fe0" stroke-width="2" rx="1"/>
+    <text class="d-label" x="10" y="88" fill="#4f9fe0" font-size="7" font-family="monospace">ZENITH WARDS</text>
+    <text class="ael-here ael-here-hidden" x="260" y="88" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
   </g>
   <g class="ael-district" data-key="glass-arch">
-    <rect class="d-accent" x="27" y="134" width="3" height="40" fill="#3ecb8f"/>
-    <rect class="d-fill d-border" x="30" y="134" width="330" height="40" fill="#0d2a22" stroke="#3ecb8f" stroke-width="1.5" rx="2"/>
-    <path class="d-detail" d="M70 168 Q120 138 170 168" fill="none" stroke="#3ecb8f" stroke-width="2"/>
-    <path class="d-detail" d="M210 168 Q260 138 310 168" fill="none" stroke="#3ecb8f" stroke-width="2"/>
-    <text class="d-label" x="40" y="158" fill="#e8e2d0" font-size="8" font-family="monospace">GLASS ARCH</text>
-    <text class="ael-here ael-here-hidden" x="200" y="158" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+    <rect class="d-fog" x="0" y="120" width="520" height="55" fill="#0a0806" opacity="0.84"/>
+    <rect class="d-glow-border" x="1" y="121" width="518" height="53" fill="rgba(62,203,143,0.06)" stroke="#3ecb8f" stroke-width="2" rx="1"/>
+    <text class="d-label" x="10" y="152" fill="#3ecb8f" font-size="7" font-family="monospace">GLASS ARCH</text>
+    <text class="ael-here ael-here-hidden" x="260" y="152" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
   </g>
   <g class="ael-district" data-key="sunken-market">
-    <rect class="d-accent" x="27" y="178" width="3" height="40" fill="#46b5c8"/>
-    <rect class="d-fill d-border" x="30" y="178" width="330" height="40" fill="#0c2530" stroke="#46b5c8" stroke-width="1.5" rx="2"/>
-    <g class="d-detail" stroke="#46b5c8" stroke-width="1" fill="none">
-      <path d="M60 210 q10 -8 20 0 t20 0 t20 0 t20 0"/>
-      <rect x="200" y="196" width="18" height="16" fill="#1a4654" stroke="#46b5c8" stroke-width="0.6"/>
-      <rect x="226" y="196" width="18" height="16" fill="#1a4654" stroke="#46b5c8" stroke-width="0.6"/>
-      <rect x="252" y="196" width="18" height="16" fill="#1a4654" stroke="#46b5c8" stroke-width="0.6"/>
-    </g>
-    <text class="d-label" x="40" y="202" fill="#e8e2d0" font-size="8" font-family="monospace">SUNKEN MARKET</text>
-    <text class="ael-here ael-here-hidden" x="200" y="202" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+    <rect class="d-fog" x="0" y="175" width="520" height="45" fill="#0a0806" opacity="0.84"/>
+    <rect class="d-glow-border" x="1" y="176" width="518" height="43" fill="rgba(70,181,200,0.06)" stroke="#46b5c8" stroke-width="2" rx="1"/>
+    <text class="d-label" x="10" y="202" fill="#46b5c8" font-size="7" font-family="monospace">SUNKEN MARKET</text>
+    <text class="ael-here ael-here-hidden" x="260" y="202" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
   </g>
   <g class="ael-district" data-key="the-sump">
-    <rect class="d-accent" x="27" y="222" width="3" height="40" fill="#e2554a"/>
-    <rect class="d-fill d-border" x="30" y="222" width="330" height="40" fill="#2e120f" stroke="#e2554a" stroke-width="1.5" rx="2"/>
-    <g class="d-detail" fill="#5c211b" stroke="#e2554a" stroke-width="0.6">
-      <rect x="70" y="234" width="10" height="24"/><rect x="86" y="240" width="10" height="18"/>
-      <rect x="260" y="234" width="10" height="24"/><rect x="276" y="240" width="10" height="18"/>
-      <circle cx="160" cy="244" r="6" fill="none"/><circle cx="178" cy="248" r="4" fill="none"/>
-    </g>
-    <text class="d-label" x="40" y="246" fill="#e8e2d0" font-size="8" font-family="monospace">THE SUMP</text>
-    <text class="ael-here ael-here-hidden" x="200" y="246" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+    <rect class="d-fog" x="0" y="220" width="520" height="45" fill="#0a0806" opacity="0.86"/>
+    <rect class="d-glow-border" x="1" y="221" width="518" height="43" fill="rgba(226,85,74,0.08)" stroke="#e2554a" stroke-width="2.5" rx="1"/>
+    <text class="d-label" x="10" y="248" fill="#e2554a" font-size="7" font-family="monospace">THE SUMP</text>
+    <text class="ael-here ael-here-hidden" x="260" y="248" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
   </g>
   <g class="ael-district" data-key="undergrid">
-    <rect class="d-accent" x="27" y="266" width="3" height="40" fill="#c8a14f"/>
-    <rect class="d-fill d-border" x="30" y="266" width="330" height="40" fill="#241c0c" stroke="#c8a14f" stroke-width="1.5" rx="2"/>
-    <g class="d-detail" fill="none" stroke="#c8a14f" stroke-width="1">
-      <ellipse cx="80" cy="286" rx="12" ry="9"/><ellipse cx="160" cy="286" rx="12" ry="9"/>
-      <ellipse cx="300" cy="286" rx="12" ry="9"/>
-    </g>
-    <text class="d-label" x="40" y="290" fill="#e8e2d0" font-size="8" font-family="monospace">UNDERGRID</text>
-    <text class="ael-here ael-here-hidden" x="200" y="290" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace">&gt;&gt; YOU ARE HERE</text>
+    <rect class="d-fog" x="0" y="265" width="520" height="55" fill="#0a0806" opacity="0.88"/>
+    <rect class="d-glow-border" x="1" y="266" width="518" height="53" fill="rgba(200,161,79,0.06)" stroke="#c8a14f" stroke-width="2" rx="1"/>
+    <text class="d-label" x="10" y="295" fill="#c8a14f" font-size="7" font-family="monospace">UNDERGRID</text>
+    <text class="ael-here ael-here-hidden" x="260" y="295" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
   </g>
-  <g>
-    <rect x="372" y="46" width="138" height="240" fill="#13100c" stroke="#3a3424" stroke-width="1" rx="3"/>
-    <text x="382" y="64" fill="#8a8266" font-size="7" font-family="monospace">LOCATION</text>
-    <text id="ael-panel-name" x="382" y="84" fill="#fff" font-size="9" font-family="monospace">---</text>
-    <text id="ael-panel-desc1" x="382" y="104" fill="#bdb59a" font-size="6" font-family="monospace"></text>
-    <text id="ael-panel-desc2" x="382" y="118" fill="#bdb59a" font-size="6" font-family="monospace"></text>
-    <text id="ael-panel-desc3" x="382" y="132" fill="#bdb59a" font-size="6" font-family="monospace"></text>
-  </g>
-  <text x="260" y="312" text-anchor="middle" fill="#e8e2d0" font-size="11" font-family="monospace" letter-spacing="2">AETHELGARD</text>
+
+  <!-- Location info overlay — top-right corner -->
+  <rect x="356" y="0" width="164" height="120" fill="rgba(10,8,6,0.82)" stroke="#3a3424" stroke-width="1"/>
+  <text x="366" y="15" fill="#8a8266" font-size="6" font-family="monospace">AETHELGARD</text>
+  <line x1="358" y1="20" x2="518" y2="20" stroke="#3a3424" stroke-width="1"/>
+  <text x="366" y="34" fill="#6a6050" font-size="6" font-family="monospace">LOCATION</text>
+  <text id="ael-panel-name" x="366" y="52" fill="#fff" font-size="8" font-family="monospace">---</text>
+  <line x1="358" y1="58" x2="518" y2="58" stroke="#3a3424" stroke-width="1"/>
+  <text id="ael-panel-desc1" x="366" y="72" fill="#bdb59a" font-size="5.5" font-family="monospace"></text>
+  <text id="ael-panel-desc2" x="366" y="85" fill="#bdb59a" font-size="5.5" font-family="monospace"></text>
+  <text id="ael-panel-desc3" x="366" y="98" fill="#bdb59a" font-size="5.5" font-family="monospace"></text>
+
+  <!-- District list overlay — bottom-right corner -->
+  <rect x="356" y="200" width="164" height="120" fill="rgba(10,8,6,0.80)" stroke="#3a3424" stroke-width="1"/>
+  <text x="366" y="215" fill="#5a5040" font-size="5" font-family="monospace">DISTRICTS</text>
+  <circle cx="370" cy="227" r="2.5" fill="#9a7bd6"/><text x="376" y="231" fill="#6a6050" font-size="5" font-family="monospace">UPPER-SPIRE</text>
+  <circle cx="370" cy="241" r="2.5" fill="#4f9fe0"/><text x="376" y="245" fill="#6a6050" font-size="5" font-family="monospace">ZENITH WARDS</text>
+  <circle cx="370" cy="255" r="2.5" fill="#3ecb8f"/><text x="376" y="259" fill="#6a6050" font-size="5" font-family="monospace">GLASS ARCH</text>
+  <circle cx="370" cy="269" r="2.5" fill="#46b5c8"/><text x="376" y="273" fill="#6a6050" font-size="5" font-family="monospace">SUNKEN MKT</text>
+  <circle cx="370" cy="283" r="2.5" fill="#e2554a"/><text x="376" y="287" fill="#6a6050" font-size="5" font-family="monospace">THE SUMP</text>
+  <circle cx="370" cy="297" r="2.5" fill="#c8a14f"/><text x="376" y="301" fill="#6a6050" font-size="5" font-family="monospace">UNDERGRID</text>
 </svg>`;
 
 let _mapInjected = false;
@@ -220,10 +352,19 @@ function pushDialogue(speaker, text){
 }
 
 function showHelp(){
-  setStage('agents');
-  narrText.innerHTML = HELP_TEXT+'<br><br><b>SLASH COMMANDS:</b><br>/lore /map /party /recap /trace /status<span class="cursor"></span>';
+  const overlay = document.getElementById('helpOverlay');
+  const body = document.getElementById('helpBody');
+  if(body) body.innerHTML = HELP_TEXT;
+  if(overlay) overlay.classList.add('show');
 }
+function hideHelp(){
+  const overlay = document.getElementById('helpOverlay');
+  if(overlay) overlay.classList.remove('show');
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape') hideHelp(); });
 window.showHelp = showHelp;
+window.hideHelp = hideHelp;
+window.usePower = usePower;
 
 function showGameOver(){
   let el = document.getElementById('gameOverScreen');
@@ -254,6 +395,89 @@ function checkEndConditions(){
   const totalHp = (gameState.party||[]).reduce((s,m)=>s+m.health,0);
   if(totalHp <= 0){ showGameOver(); return; }
   if(gameState.world_flags && gameState.world_flags.victory){ showVictory(); }
+}
+
+function checkDeaths(){
+  if(!gameState) return;
+  (gameState.party||[]).forEach(m => {
+    const prev = _prevPartyHp[m.agent];
+    if(prev !== undefined){
+      if(prev > 0 && m.health <= 0){
+        try { _sfx.death(); } catch {}
+        showToast('[†] ' + m.name + ' has fallen.');
+      } else if(m.health > prev){
+        const gain = m.health - prev;
+        showToast('[+] ' + m.name + ' restored ' + gain + ' HP', '#44aa66');
+        const card = document.querySelector('.agent-card[data-role="'+m.agent+'"]');
+        if(card){ card.classList.add('hp-gain-flash'); setTimeout(()=>card.classList.remove('hp-gain-flash'), 900); }
+      }
+    }
+    _prevPartyHp[m.agent] = m.health;
+  });
+}
+
+// -- Action suggestions --
+const _LOCATION_SUGGESTS = {
+  'the-sump':['Search the rusted machinery','Ask a local about the plague source','Inspect the drainage pipes','Follow the smell of chemicals','Check for hidden passages'],
+  'zenith-wards':['Bribe the gate guard','Investigate the locked workshop','Follow the trail of ash','Talk to the guild master','Search the rooftops'],
+  'glass-arch':['Cross the green bridge carefully','Search under the archway','Ask the toll keeper','Check the trading posts','Look for smuggler marks'],
+  'sunken-market':['Browse the salvage stalls','Ask the swampfolk for rumours','Search the flooded alleys','Look for contraband','Hire a local guide'],
+  'upper-spire':['Access the engineer archives','Inspect the crystal matrix','Talk to the spire sentinels','Investigate the power core','Climb to the observation deck'],
+  'undergrid':['Follow the maintenance lights','Search for old work logs','Investigate the strange hum','Check the ventilation shafts','Look for old maps'],
+};
+const _UNIVERSAL_SUGGESTS = [
+  'Examine the area carefully',
+  'Ask Bram to tend the wounded',
+  'Look for anything useful nearby',
+  'Listen for unusual sounds',
+  'Check the party\'s equipment',
+  'Search for a hidden exit',
+  'Ask Seren to gather information',
+];
+function renderSuggestions(){
+  const row = document.getElementById('suggestRow');
+  if(!row) return;
+  const loc = gameState && _mapKeyFor(gameState.location);
+  const hp = gameState ? (gameState.party||[]).reduce((s,m)=>s+Math.max(0,m.health),0) : 100;
+  const maxHp = gameState ? (gameState.party||[]).reduce((s,m)=>s+m.max_health,0) : 100;
+  let pool = [...(_LOCATION_SUGGESTS[loc]||[]),..._UNIVERSAL_SUGGESTS];
+  if(hp < maxHp * 0.5) pool = ['Tell Bram to heal the wounded','Find a safe place to rest','Use a healing potion if you have one',...pool];
+  // Shuffle with a seed based on HP so suggestions vary between turns but aren't random on re-render
+  const seed = (hp + (gameState&&gameState.objectives?gameState.objectives.filter(o=>o.status==='done').length:0));
+  for(let i=pool.length-1;i>0;i--){ const j=(seed*9301+49297)%pool.length; [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  row.innerHTML = '<span class="suggest-label">TRY:</span>'
+    + pool.slice(0,3).map(s => `<button class="suggest-chip" data-sug="${s.replace(/"/g,'&quot;')}">${s}</button>`).join('');
+  row.querySelectorAll('.suggest-chip').forEach(btn => {
+    btn.onclick = () => { const inp = document.getElementById('pInput'); if(inp){ inp.value = btn.dataset.sug; inp.focus(); } };
+  });
+}
+
+// -- Agent powerups --
+function usePower(){
+  const myClass = (localStorage.getItem('opencode_playerClass')||'Warrior').toLowerCase();
+  const power = AGENT_POWERS[myClass];
+  if(!power){ showToast('[!] No power available.'); return; }
+  const flagKey = 'ael_power_'+myClass;
+  if(localStorage.getItem(flagKey)){ showToast('[!] '+power.name+' already used this session.'); return; }
+  localStorage.setItem(flagKey, '1');
+  updatePowerBtn();
+  pInput.value = power.cmd;
+  showToast('[!] '+power.name+' activated!', '#9a6acc');
+  window.sendAct ? window.sendAct() : sendAct();
+}
+function updatePowerBtn(){
+  const btn = document.getElementById('powerBtn');
+  if(!btn) return;
+  const myClass = (localStorage.getItem('opencode_playerClass')||'Warrior').toLowerCase();
+  const power = AGENT_POWERS&&AGENT_POWERS[myClass];
+  if(!power){ btn.style.display='none'; return; }
+  const used = !!localStorage.getItem('ael_power_'+myClass);
+  btn.disabled = used;
+  btn.textContent = used ? power.name+' [USED]' : '[!] '+power.name;
+  const tip = document.getElementById('powerTooltip');
+  if(tip){
+    tip.innerHTML = '<div class="ptt-name">'+power.name+'</div><div class="ptt-desc">'+power.desc+'</div>'+(used?'<div class="ptt-used">[USED THIS SESSION]</div>':'<div class="ptt-hint">Click to activate</div>');
+  }
 }
 
 const LORE_TERMS = ['Clockwork Plague','The Sump','Aethelgard','Pressure Core','Sector-04','Upper-Spire','Undergrid','brass cylinder','aether-core','pressure valves','emergency grid-lock','holo-display','swampfolk','automaton','Zenith Wards','master console','steam pipes','Engineers','Hidden Blade'];
@@ -296,23 +520,34 @@ function renderRecap(){
   recapBody.scrollTop = recapBody.scrollHeight;
 }
 
-const HELP_TEXT = '<b>[ GAME MASTER - HELP ]</b><br><br>'
-  +'Type any action and hit ACT. The AI party reacts and the story unfolds.<br><br>'
+const HELP_TEXT = '<b>[ AGENTS LEAGUE - HELP ]</b><br><br>'
+  +'Type any action and hit ACT (or press Enter). The AI party reacts and the story unfolds.<br><br>'
   +'<b>EXAMPLE ACTIONS:</b><br>'
-  +'"I look around The Sump for clues about the Clockwork Plague"<br>'
-  +'"I ask Kael what he knows about this area"<br>'
-  +'"I investigate the nearest pressure pipe"<br>'
-  +'"I try to sneak past the guard"<br>'
-  +'"I talk to the locals about the plague symptoms"<br><br>'
-  +'<b>HOW IT WORKS:</b><br>'
-  +'Risky actions trigger a D20 dice roll. Roll high = success, roll low = complications. '
-  +'Each party member then reacts in character.<br><br>'
-  +'<b>TIPS:</b><br>'
-  +'Click any <span class="narr-link">highlighted word</span> to ask the GM about it.<br>'
-  +'[S] RECAP = full dialogue history<br>'
-  +'[W] LORE = world encyclopedia (unlocks as you explore)<br>'
-  +'[M] MAP = Aethelgard city map<br>'
-  +'[T] TRACE = see the AI reasoning chain';
+  +'"Search the rusted machinery for clues"<br>'
+  +'"Ask Kael what he knows about this district"<br>'
+  +'"Try to sneak past the patrol"<br>'
+  +'"Attack the automaton guarding the console"<br>'
+  +'"Ask Bram to tend to the wounded"<br><br>'
+  +'<b>DICE ROLLS:</b><br>'
+  +'Risky actions trigger a D20 check. Roll high = full success. Mid = partial. Low = complications. '
+  +'The party member with the best stat for the task rolls - not always you.<br><br>'
+  +'<b>SPECIAL ABILITIES:</b><br>'
+  +'The <b>[!] POWER</b> button activates your agent\'s special ability (once per session):<br>'
+  +'Warrior = OVERPOWER &nbsp; Mage = ARCANE SIGHT<br>'
+  +'Healer = MEND ALL &nbsp;&nbsp;&nbsp; Bard = RALLY CRY<br>'
+  +'Rival = SHADOW STEP &nbsp;&nbsp;&nbsp; (type /power too)<br><br>'
+  +'<b>STATUS EFFECTS:</b><br>'
+  +'Party members can be POISONED, STUNNED, INSPIRED, BURNING, SHIELDED etc. - shown as badges on their cards. The GM applies these based on what happens in the story.<br><br>'
+  +'<b>XP + LEVELS:</b><br>'
+  +'Earn XP from dice successes (+1) and completed objectives (+2). Hit 5 XP = Level Up.<br><br>'
+  +'<b>SAVE / LOAD:</b><br>'
+  +'[S] SAVE exports your game to a .json file. [L] LOAD restores it.<br><br>'
+  +'<b>SIDEBAR:</b><br>'
+  +'[X] PARTY = agent cards &nbsp;[S] RECAP = full history<br>'
+  +'[W] LORE = world encyclopedia &nbsp;[M] MAP = city map<br>'
+  +'[T] TRACE = AI reasoning &nbsp;[?] HELP = this screen<br><br>'
+  +'<b>SLASH COMMANDS:</b><br>'
+  +'/help /lore /map /party /recap /trace /status /power';
 
 function unlockDie(){
   const btn = document.getElementById('dieBtn');
@@ -325,15 +560,14 @@ function showDieIntroPopup(){
   popup = document.createElement('div');
   popup.id = 'dieIntroPopup';
   popup.className = 'die-intro-popup';
-  popup.innerHTML = '<div class="dip-title">[ WHAT IS A DICE ROLL? ]</div>'
+  popup.innerHTML = '<div class="dip-title">[ LUCK ROLL ]<button class="dip-x" onclick="document.getElementById(\'dieIntroPopup\').remove()">[X]</button></div>'
     +'<div class="dip-body">'
-    +'When you attempt something risky, the GM calls for a <b>D20 check</b> - a 20-sided die rolled by the system.<br><br>'
-    +'<b>The number shown</b> is your raw roll (1-20).<br>'
-    +'<b>WARRIOR CHECK</b> means your Warrior\'s STR modifier is added to the roll.<br><br>'
-    +'<b>HIGH roll</b> = full success<br>'
-    +'<b>MID roll</b> = partial success with complications<br>'
-    +'<b>LOW roll</b> = failure - things get worse<br><br>'
-    +'The [!] DIE ROLL tab keeps a history of all rolls.'
+    +'When you try something risky, the game automatically tests your chances with a number between 1 and 20.<br><br>'
+    +'The best agent for the job takes the roll - <b>Jax</b> for fights, <b>Lyra</b> for mysteries, <b>Bram</b> for healing, <b>Seren</b> for talking your way out.<br><br>'
+    +'<b>HIGH number</b> = it works perfectly<br>'
+    +'<b>MIDDLE</b> = it works, but something goes wrong too<br>'
+    +'<b>LOW number</b> = it fails, and things get worse<br><br>'
+    +'The [!] DIE ROLL tab shows a history of every roll.'
     +'</div>'
     +'<button class="dip-close" onclick="document.getElementById(\'dieIntroPopup\').remove()">GOT IT &gt;</button>';
   document.body.appendChild(popup);
@@ -345,8 +579,7 @@ async function sendAct(){
   pInput.value = '';
 
   if(val.toLowerCase() === 'help' || val === '/help'){
-    narrText.innerHTML = HELP_TEXT + '<br><br><b>SLASH COMMANDS:</b><br>/lore - open world lore panel<br>/map - open city map<br>/party - view party stats<br>/recap - session history<br>/trace - AI reasoning chain<br>/status - show current HP and quest<span class="cursor"></span>';
-    pushDialogue('GM', 'HELP: commands and tips shown.');
+    showHelp();
     return;
   }
   if(val === '/lore'){ setStage('lore'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened WORLD LORE ]</em><span class="cursor"></span>'; return; }
@@ -354,11 +587,12 @@ async function sendAct(){
   if(val === '/party'){ setStage('agents'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened PARTY ]</em><span class="cursor"></span>'; return; }
   if(val === '/recap'){ setStage('recap'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened RECAP ]</em><span class="cursor"></span>'; return; }
   if(val === '/trace'){ setStage('trace'); narrText.innerHTML += '<br><em style="color:#8a6a3a;font-size:0.85em">[ Opened TRACE ]</em><span class="cursor"></span>'; return; }
+  if(val === '/power'){ usePower(); return; }
   if(val === '/status'){
     if(gameState){
       const hp = (gameState.party||[]).reduce((s,m)=>s+m.health,0);
       const maxHp = (gameState.party||[]).reduce((s,m)=>s+m.max_health,0);
-      narrText.innerHTML = '<b>STATUS</b><br>Location: '+(gameState.location||'?')+'<br>Quest: '+(gameState.active_quest||'?')+'<br>Party HP: '+hp+'/'+maxHp+'<span class="cursor"></span>';
+      _saveAndShowHelp('<b>STATUS</b><br>Location: '+(gameState.location||'?')+'<br>Quest: '+(gameState.active_quest||'?')+'<br>Party HP: '+hp+'/'+maxHp+'<br><br><em style="color:#8a6a3a;font-size:0.85em">[ Click the input to return to your story ]</em><span class="cursor"></span>');
     }
     return;
   }
@@ -380,13 +614,30 @@ async function sendAct(){
   try {
     const res = await apiPost('/turn', {action: val, session_id: "default"});
     gameState = res.state;
+    checkDeaths();
     renderParty();
+    renderSuggestions();
     if(res.trace) renderTrace(res.trace);
     showGM();
     const setup = res.narration_setup || '';
     const outcome = res.narration_outcome || '';
     const narrationText = (res.narration_setup || '') + ' ' + (res.narration_outcome || '');
     scanForLore(narrationText);
+    // XP from dice outcomes
+    if(res.dice){
+      if(res.dice.result === 'success') gainXP(res.dice.actor || currentRole, 1);
+      else if(res.dice.result === 'partial') gainXP(res.dice.actor || currentRole, 0);
+    }
+    // XP from objectives completed this turn
+    (res.state&&res.state.objectives||[]).forEach(o => {
+      if(o.status==='done' && (!_prevObjStatuses||_prevObjStatuses[o.id]!=='done')) gainXP(currentRole, 2);
+    });
+    // Track who spoke in followups so banter skips them
+    _lastFollowupAgents = new Set((res.followups||[]).map(f=>f.agent.toLowerCase()));
+    // Travel events
+    tryTravelEvent(res.plan&&res.plan.intent);
+    // Banter every 3 turns
+    tryBanter();
     if(res.dice) {
       dieHistory.unshift({actor:res.dice.actor||'', check:res.dice.check||'', roll:res.dice.roll, modifier:res.dice.modifier||0, total:res.dice.total, result:res.dice.result, consequence:res.dice.consequence||''});
       if(!dieEverRolled){
@@ -456,7 +707,8 @@ function startDieAnimation(finalRoll, finalTotal, modifier, finalResult, finalCo
   const totalTicks = 28;
   const numEl = dieNum;
   const outcome = finalResult === 'success';
-  const outcomeLabel = outcome ? 'SUCCESS' : 'FAIL';
+  const isPartial = finalResult === 'partial';
+  const outcomeLabel = outcome ? 'SUCCESS' : isPartial ? 'PARTIAL' : 'FAIL';
   function getDelay(tick){
     if(tick<8) return 40;
     if(tick<16) return 60;
@@ -476,12 +728,12 @@ function startDieAnimation(finalRoll, finalTotal, modifier, finalResult, finalCo
       lastDieTotal = finalTotal;
       const modStr = modifier > 0 ? ' +'+modifier : modifier < 0 ? ' '+modifier : '';
       lastDieResultText = 'ROLLED '+finalRoll+modStr+' = '+finalTotal+' - '+outcomeLabel + (finalConsequence ? ' - '+finalConsequence : '');
-      lastDieColor = outcome ? '#2a5a22' : '#7a2222';
+      lastDieColor = outcome ? '#2a5a22' : isPartial ? '#7a5a12' : '#7a2222';
       dieResult.textContent = lastDieResultText;
       dieResult.style.color = lastDieColor;
       dieResult.style.display = 'block';
       dieRolling = false;
-      try { outcome ? _sfx.success() : _sfx.fail(); } catch {}
+      try { outcome ? _sfx.success() : isPartial ? _sfx.partial() : _sfx.fail(); } catch {}
       try { setTimeout(() => _bgm.setTension(0), 1800); } catch {}
       fetchTrace();
       setTimeout(function(){ if(onComplete) onComplete(); }, 1500);
@@ -548,7 +800,10 @@ async function checkIntro(){
 
 // -- Objectives --
 const STATUS_ICON = { active:'[*]', todo:'[ ]', done:'[X]', failed:'[!]' };
+const STATUS_TOAST = { done:'[X] Objective complete: ', failed:'[!] Objective failed: ' };
+const STATUS_TOAST_COLOR = { done:'#40a840', failed:'#cc3333' };
 let objOpen = false;
+let _prevObjStatuses = {};
 
 function renderObjectives(){
   const panel = document.getElementById('objPanel');
@@ -558,10 +813,26 @@ function renderObjectives(){
   if(!objs.length){ panel.classList.remove('open'); return; }
   const doneCount = objs.filter(o=>o.status==='done').length;
   if(toggle) toggle.textContent = '['+doneCount+'/'+objs.length+']';
+
+  // Detect status changes and toast
+  const changed = [];
+  objs.forEach(o => {
+    const prev = _prevObjStatuses[o.id];
+    if(prev !== undefined && prev !== o.status && (o.status === 'done' || o.status === 'failed')){
+      changed.push(o);
+    }
+    _prevObjStatuses[o.id] = o.status;
+  });
+  changed.forEach(o => {
+    showToast((STATUS_TOAST[o.status]||'')+o.text, STATUS_TOAST_COLOR[o.status]||'#c8922a');
+    try { o.status === 'done' ? _sfx.success() : _sfx.fail(); } catch {}
+  });
+
   if(!objOpen){ panel.classList.remove('open'); return; }
   panel.innerHTML = objs.map(o=>{
     const s = o.status||'todo';
-    return '<div class="obj-row obj-'+s+'"><span class="obj-icon">'+STATUS_ICON[s]+'</span>'+o.text+'</div>';
+    const flash = changed.find(c=>c.id===o.id) ? ' obj-flash' : '';
+    return '<div class="obj-row obj-'+s+flash+'"><span class="obj-icon">'+STATUS_ICON[s]+'</span>'+o.text+'</div>';
   }).join('');
   panel.classList.add('open');
 }
@@ -581,6 +852,8 @@ async function initGame(){
   setRole(currentRole);
   renderLore();
   renderMap();
+  renderSuggestions();
+  updatePowerBtn();
   try {
     const traceData = await apiGet('/trace');
     renderTrace(traceData);
@@ -666,10 +939,12 @@ const _sfx = (function(){
     } catch {}
   }
   return {
+    death(){ tone(260,0.2,'sine',0.12); setTimeout(()=>tone(200,0.25,'sine',0.09),220); setTimeout(()=>tone(150,0.4,'sine',0.06),500); },
     click(){ tone(440, 0.05); },
     send(){ tone(520, 0.06); setTimeout(() => tone(660, 0.08), 60); },
     dice(){ [220,180,260,200,300].forEach((f,i) => setTimeout(() => tone(f, 0.04, 'sawtooth'), i*40)); },
     success(){ tone(523, 0.1); setTimeout(() => tone(659, 0.1), 100); setTimeout(() => tone(784, 0.18), 200); },
+    partial(){ tone(440, 0.1); setTimeout(() => tone(380, 0.12), 110); },
     fail(){ tone(300, 0.1); setTimeout(() => tone(200, 0.15), 100); }
   };
 })();
@@ -677,7 +952,7 @@ const _sfx = (function(){
 const _origSendAct = sendAct;
 window.sendAct = function(){ _sfx.send(); _origSendAct(); };
 
-// -- Ambient background music (dynamic — reacts to game events) --
+// -- Ambient background music (dynamic - reacts to game events) --
 const _bgm = (function(){
   let ctx = null, started = false, masterGain = null, _lfo = null, _tensionGain = null;
   function init(){
@@ -714,7 +989,7 @@ const _bgm = (function(){
       _lfo.connect(lfoGain); lfoGain.connect(bass.frequency);
       _lfo.start();
 
-      // Tension layer — sawtooth growl, starts silent, fades in during dice rolls
+      // Tension layer - sawtooth growl, starts silent, fades in during dice rolls
       const tensionOsc = ctx.createOscillator();
       _tensionGain = ctx.createGain();
       tensionOsc.type = 'sawtooth'; tensionOsc.frequency.value = 165;
