@@ -47,11 +47,12 @@ class GameManager:
         inventory_add: dict[str, list[str]] | None = None,
         inventory_remove: dict[str, list[str]] | None = None,
         flags_set: dict[str, bool | str] | None = None,
+        objectives: list[dict] | None = None,
         narration: str | None = None,
     ) -> list[str]:
         has_state_change = any(
             x is not None
-            for x in [location, active_quest, health_changes, inventory_add, inventory_remove, flags_set]
+            for x in [location, active_quest, health_changes, inventory_add, inventory_remove, flags_set, objectives]
         )
 
         errors: list[str] = []
@@ -64,6 +65,7 @@ class GameManager:
                 inventory_add=inventory_add,
                 inventory_remove=inventory_remove,
                 flags_set=flags_set,
+                objectives=objectives,
             )
             self.record_trace(
                 "state_update",
@@ -74,6 +76,7 @@ class GameManager:
                     "inventory_add": inventory_add,
                     "inventory_remove": inventory_remove,
                     "flags_set": flags_set,
+                    "objectives": objectives,
                     "warnings": errors,
                 },
             )

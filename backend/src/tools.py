@@ -193,6 +193,7 @@ class RPGTools:
             inventory_add=patch.get("inventory_add"),
             inventory_remove=patch.get("inventory_remove"),
             flags_set=patch.get("flags_set"),
+            objectives=patch.get("objectives"),
             narration=patch.get("narration"),
         )
 

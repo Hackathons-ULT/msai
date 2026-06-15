@@ -16,6 +16,7 @@ def validate_and_apply(
     inventory_add: dict[str, list[str]] | None = None,
     inventory_remove: dict[str, list[str]] | None = None,
     flags_set: dict[str, bool | str] | None = None,
+    objectives: list[dict] | None = None,
 ) -> tuple[GameState, list[str]]:
     errors: list[str] = []
 
@@ -66,5 +67,18 @@ def validate_and_apply(
                     f"Flag {key!r} already set to {old!r}; overwriting to {value!r}"
                 )
             state.world_flags[key] = value
+
+    if objectives:
+        obj_index = {o["id"]: i for i, o in enumerate(state.objectives)}
+        valid_statuses = {"active", "done", "failed", "todo"}
+        for update in objectives:
+            obj_id = update.get("id")
+            if obj_id in obj_index:
+                idx = obj_index[obj_id]
+                new_status = update.get("status")
+                if new_status in valid_statuses:
+                    state.objectives[idx] = {**state.objectives[idx], "status": new_status}
+            else:
+                errors.append(f"Unknown objective id: {obj_id!r}")
 
     return state, errors

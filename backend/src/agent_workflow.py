@@ -54,14 +54,14 @@ CHECK_TO_STAT = {
 }
 
 ALLOWED_AGENTS_BY_INTENT = {
-    "combat": {"Warrior", "Mage", "Rogue"},
+    "combat": {"Warrior", "Mage"},
     "support": {"Healer", "Mage"},
-    "stealth": {"Rogue", "Warrior"},
-    "investigate": {"Rogue", "Mage", "Healer"},
-    "travel": {"Rogue", "Warrior"},
-    "arcana": {"Mage", "Rogue"},
-    "social": {"Healer", "Rival", "Bard"},
-    "clarify": {"Warrior", "Mage", "Healer", "Rogue", "Bard", "Rival"},
+    "stealth": {"Warrior", "Bard"},
+    "investigate": {"Mage", "Healer"},
+    "travel": {"Warrior", "Mage"},
+    "arcana": {"Mage", "Healer"},
+    "social": {"Healer", "Bard", "Rival"},
+    "clarify": {"Warrior", "Mage", "Healer", "Bard", "Rival"},
 }
 
 
@@ -170,7 +170,16 @@ class LocalAgentWorkflow:
                 modifier=modifier,
             )
 
-        state_patch = plan.state_patch or self._derive_state_patch(action, plan, lore, dice_result)
+        derived_patch = self._derive_state_patch(action, plan, lore, dice_result)
+        llm_patch = plan.state_patch or {}
+        # Merge: derived covers dice-driven HP; LLM patch wins on everything else.
+        # health_changes are additive — both dice damage and LLM heals can coexist.
+        state_patch: dict[str, Any] = {**derived_patch}
+        for k, v in llm_patch.items():
+            if k == "health_changes" and "health_changes" in derived_patch:
+                state_patch["health_changes"] = {**derived_patch["health_changes"], **v}
+            else:
+                state_patch[k] = v
         warnings: list[str] = []
         if state_patch:
             warnings = self.tools.apply_patch(state_patch)
@@ -182,6 +191,7 @@ class LocalAgentWorkflow:
                     "warnings": warnings,
                 },
             )
+        self._check_story_flags()
 
         narration_setup, narration_outcome = self._compose_narration(
             action, plan, lore, specialist_notes, dice_result, warnings, state_patch
@@ -207,6 +217,27 @@ class LocalAgentWorkflow:
             dice=dice_result,
             warnings=warnings,
         )
+
+    def _check_story_flags(self) -> None:
+        """Auto-set kael_revealed and victory world flags based on current state."""
+        state = self.gm.get_state()
+        flags = state.get("world_flags", {})
+        party = state.get("party", [])
+
+        rival = next((m for m in party if m.get("agent") == "Rival"), None)
+        if rival and rival.get("health", 1) <= 0 and not flags.get("kael_revealed"):
+            self.gm.update(flags_set={"kael_revealed": True})
+            self.gm.record_trace("state_update", {"flags_set": {"kael_revealed": True}})
+
+        if flags.get("kael_revealed") and not flags.get("victory"):
+            objectives = state.get("objectives", [])
+            culprit_done = any(
+                o.get("id") == "culprit" and o.get("status") == "done"
+                for o in objectives
+            )
+            if culprit_done:
+                self.gm.update(flags_set={"victory": True})
+                self.gm.record_trace("state_update", {"flags_set": {"victory": True}})
 
     def _build_plan(self, action: str, session_id: str) -> TurnPlan:
         heuristic = self._heuristic_plan(action, session_id)
@@ -281,13 +312,18 @@ class LocalAgentWorkflow:
             "Allowed intents: combat, support, stealth, travel, investigate, arcana, social, clarify.\n"
             "Pick 1-3 agents maximum.\n\n"
             "=== state_patch schema (include to change state, omit {} to keep unchanged) ===\n"
-            "health_changes: {\"AgentName\": +/-N} — damage (negative) or heal (positive), range -10 to +10\n"
-            "inventory_add: {\"AgentName\": [\"item\"]} — give items\n"
-            "inventory_remove: {\"AgentName\": [\"item\"]} — take items (error if absent)\n"
-            "flags_set: {\"flag_name\": true/false or \"string\"} — set story flags\n"
+            "health_changes: {\"CharacterName\": +/-N} — damage (negative) or heal (positive); use the character's display name (e.g. \"Kael\", \"Lyra\"); range -20 to +10\n"
+            "inventory_add: {\"CharacterName\": [\"item\"]} — give items; use the character's display name\n"
+            "inventory_remove: {\"CharacterName\": [\"item\"]} — take items (error if absent); use the character's display name\n"
+            "flags_set: {\"flag_name\": true/false or \"string\"} — set story flags. "
+            "Use \"{agentkey}_{effect}\": true/false to apply status effects to party members, "
+            "where agentkey is lowercase agent role (warrior/mage/healer/bard/rival) and effect is one of: "
+            "poisoned, stunned, inspired, burning, shielded, weakened, blessed, cursed. "
+            "Example: {\"warrior_poisoned\": true, \"healer_inspired\": true}. Set to false to remove.\n"
             "location: \"New Location\" — change current location (or omit to keep)\n"
             "active_quest: \"New Quest\" — change quest (or omit to keep)\n"
-            "Keep changes small and dramatic, 0-2 fields per turn. Be concise. No extra text.\n"
+            "objectives: [{\"id\": \"<id>\", \"status\": \"done|active|failed\"}] — mark objectives when clearly completed or failed\n"
+            "Keep changes small and dramatic. Be concise. No extra text.\n"
         )
         party_details = [
             {
@@ -307,6 +343,7 @@ class LocalAgentWorkflow:
             "active_quest": state.get("active_quest", ""),
             "party": party_details,
             "world_flags": state.get("world_flags", {}),
+            "objectives": state.get("objectives", []),
         }
         result = self.llm.complete(
             messages=[
@@ -352,8 +389,14 @@ class LocalAgentWorkflow:
 
     def _sanitize_state_patch(self, patch: dict[str, Any]) -> dict[str, Any]:
         sanitized: dict[str, Any] = {}
-        party_names = {m["agent"] for m in self.gm.get_state().get("party", [])}
-        allowed_top_keys = {"health_changes", "inventory_add", "inventory_remove", "flags_set", "location", "active_quest"}
+        party = self.gm.get_state().get("party", [])
+        # accept both agent role name and character display name
+        name_to_agent: dict[str, str] = {}
+        for m in party:
+            name_to_agent[m["agent"].lower()] = m["agent"]
+            if m.get("name"):
+                name_to_agent[m["name"].lower()] = m["agent"]
+        allowed_top_keys = {"health_changes", "inventory_add", "inventory_remove", "flags_set", "location", "active_quest", "objectives"}
 
         for key, value in patch.items():
             if key not in allowed_top_keys:
@@ -365,17 +408,19 @@ class LocalAgentWorkflow:
                 if not isinstance(value, dict):
                     continue
                 hc = {}
-                for agent, delta in value.items():
-                    if isinstance(agent, str) and agent in party_names and isinstance(delta, (int, float)):
-                        hc[agent] = max(-10, min(10, int(delta)))
+                for name, delta in value.items():
+                    agent = name_to_agent.get(name.lower()) if isinstance(name, str) else None
+                    if agent and isinstance(delta, (int, float)):
+                        hc[agent] = max(-20, min(10, int(delta)))
                 if hc:
                     sanitized[key] = hc
             elif key in ("inventory_add", "inventory_remove"):
                 if not isinstance(value, dict):
                     continue
                 inv = {}
-                for agent, items in value.items():
-                    if isinstance(agent, str) and agent in party_names and isinstance(items, list):
+                for name, items in value.items():
+                    agent = name_to_agent.get(name.lower()) if isinstance(name, str) else None
+                    if agent and isinstance(items, list):
                         valid = [str(i).strip() for i in items if isinstance(i, str) and i.strip()]
                         if valid:
                             inv[agent] = valid
@@ -389,6 +434,20 @@ class LocalAgentWorkflow:
                             flags[fk] = fv
                     if flags:
                         sanitized[key] = flags
+            elif key == "objectives":
+                if not isinstance(value, list):
+                    continue
+                current_ids = {o["id"] for o in self.gm.get_state().get("objectives", [])}
+                valid_statuses = {"active", "done", "failed", "todo"}
+                updates = [
+                    {"id": item["id"], "status": item["status"]}
+                    for item in value
+                    if isinstance(item, dict)
+                    and item.get("id") in current_ids
+                    and item.get("status") in valid_statuses
+                ]
+                if updates:
+                    sanitized[key] = updates
         return sanitized
 
     def _coerce_int(self, value: Any, default: int | None = None) -> int | None:
@@ -414,13 +473,13 @@ class LocalAgentWorkflow:
 
     def _select_agents(self, intent: str, lowered_action: str) -> list[str]:
         mapping = {
-            "combat": ["Warrior", "Mage", "Rogue"],
+            "combat": ["Warrior", "Mage"],
             "support": ["Healer", "Mage"],
-            "stealth": ["Rogue", "Warrior"],
-            "investigate": ["Rogue", "Mage", "Healer"],
-            "travel": ["Rogue", "Warrior"],
-            "arcana": ["Mage", "Rogue"],
-            "social": ["Healer", "Rival"],
+            "stealth": ["Warrior", "Bard"],
+            "investigate": ["Mage", "Healer"],
+            "travel": ["Warrior", "Mage"],
+            "arcana": ["Mage", "Healer"],
+            "social": ["Healer", "Bard", "Rival"],
         }
         agents = list(mapping.get(intent, ["Warrior", "Mage"]))
         if "rival" in lowered_action or "trust" in lowered_action:
@@ -739,11 +798,23 @@ class LocalAgentWorkflow:
             + dead_note
         )
 
+        # Build active status effects string for narrator context
+        flags = state.get("world_flags", {})
+        effect_names = ["poisoned","stunned","inspired","burning","shielded","weakened","blessed","cursed"]
+        active_effects = []
+        for m in state.get("party", []):
+            ak = m.get("agent","").lower()
+            effs = [e for e in effect_names if flags.get(ak+"_"+e)]
+            if effs:
+                active_effects.append(f"{m.get('name', ak)}: {', '.join(effs)}")
+        effects_str = ("; ".join(active_effects)) if active_effects else "none"
+
         user_prompt = (
             f"Campaign: {state.get('campaign', '?')}\n"
             f"Location: {state.get('location', '?')}\n"
             f"Active Quest: {state.get('active_quest', 'none')}\n"
             f"Party health: {', '.join(m.get('name', m.get('agent')) + ' HP ' + str(m.get('health', 0)) + '/' + str(m.get('max_health', 20)) for m in state.get('party', []))}\n"
+            f"Party status effects: {effects_str}\n"
             f"Party: {', '.join(f'{n} ({a})' for n, a in zip(party_names, party_agents))}\n"
             f"Player Character: {state.get('player_character', 'the hero')}\n\n"
             f"Player action: \"{action}\"\n"
@@ -842,11 +913,23 @@ class LocalAgentWorkflow:
             persona = PERSONAS.get(name)
             follow_narration = None
             if self.llm.available:
+                char_name = member.get("name", name)
+                is_revealed = state.get("world_flags", {}).get("kael_revealed", False)
+                if name == "Rival":
+                    if is_revealed:
+                        identity_desc = f"{char_name}, a villain now exposed as the saboteur behind the Clockwork Plague"
+                    else:
+                        identity_desc = (
+                            f"{char_name}, a cynical smuggler who knows The Sump's back routes. "
+                            "You have hidden motives but NEVER hint at them — react like a mercenary, "
+                            "not a villain. Do not monologue. Do not say anything that sounds sinister or foreboding."
+                        )
+                else:
+                    identity_desc = f"{char_name}, a {persona.role if persona else 'party member'}"
                 prompt = (
-                    f"You are {name} ({persona.role if persona else 'member'}) "
-                    f"in a fantasy RPG party. React briefly to what just happened.\n"
-                    "Respond in one short sentence in character, as if speaking to the party.\n"
-                    f"Your name is {member.get('name', name)}.\n"
+                    f"You are {identity_desc} in a fantasy RPG party. "
+                    "React briefly to what just happened. "
+                    "One short sentence in character, as if speaking to the party.\n"
                 )
                 context = (
                     f"Player action: {plan.action}\n"
@@ -867,12 +950,14 @@ class LocalAgentWorkflow:
                 )
                 if result.used and result.text:
                     follow_narration = result.text.strip()
-            if not follow_narration and persona:
-                action = persona.act_followup(state, plan.intent, outcome)
-                if action:
-                    follow_narration = action.narration
-                    if action.state_patch:
-                        self.tools.apply_patch(action.state_patch)
+            if persona:
+                fallback = persona.act_followup(state, plan.intent, outcome)
+                if fallback:
+                    if not follow_narration:
+                        follow_narration = fallback.narration
+                    # Always apply HP/state changes (heals, regen) regardless of LLM narration
+                    if fallback.state_patch:
+                        self.tools.apply_patch(fallback.state_patch)
             if follow_narration:
                 followups.append({"agent": name, "narration": follow_narration, "dice": None})
                 self.gm.record_trace("agent_followup", {"agent": name, "action": follow_narration})

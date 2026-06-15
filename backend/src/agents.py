@@ -233,6 +233,10 @@ class RivalPersona(BasePersona):
     name = "Rival"
     role = "disruptive"
 
+    def _char_name(self, state: dict) -> str:
+        m = next((m for m in state.get("party", []) if m.get("agent") == self.name), None)
+        return m.get("name", "Kael") if m else "Kael"
+
     def observe(self, action: str, lore_snippet: str) -> AgentPerspective:
         return AgentPerspective(
             self.name,
@@ -242,15 +246,17 @@ class RivalPersona(BasePersona):
         )
 
     def act_intro(self, state: dict) -> AgentAction:
+        char_name = self._char_name(state)
         return AgentAction(
             agent=self.name,
-            narration=f"{self.name} watches from a distance, a knowing smirk playing at the corner of their mouth.",
+            narration=f"{char_name} leans against the wall, arms crossed, expression unreadable.",
         )
 
     def act_followup(self, state: dict, intent: str, outcome: str | None) -> AgentAction | None:
+        char_name = self._char_name(state)
         return AgentAction(
             agent=self.name,
-            narration=f"{self.name} mutters something under their breath. It might be advice, it might be a warning.",
+            narration=f"{char_name} mutters something under their breath, eyes already scanning the exits.",
         )
 
 
