@@ -13,6 +13,7 @@ let _turnCount = 0;
 // -- XP / Leveling --
 function gainXP(agent, amount){
   if(!agent || amount <= 0) return;
+  agent = agent.toLowerCase();
   if(!_sessionXP[agent]) _sessionXP[agent] = 0;
   const prev = _sessionXP[agent];
   _sessionXP[agent] += amount;
@@ -24,10 +25,11 @@ function gainXP(agent, amount){
     _levelUpPending[agent.toLowerCase()] = true;
     showToast('[+] '+name+' LEVEL UP! Choose a stat to boost.', '#f0c060');
     try { _sfx.success(); setTimeout(()=>_sfx.success(),220); } catch {}
-    appendNarration('<br><br><span style="color:#f0c060">[ LEVEL UP ] '+name+' advances to level '+newLvl+'. Choose a stat to improve on their card.</span>');
+    _pendingLevelUpMsg = '<br><br><span style="color:#f0c060">[ LEVEL UP ] '+name+' advances to level '+newLvl+'. Choose a stat to improve on their card.</span>';
   }
   renderParty();
 }
+let _pendingLevelUpMsg = null;
 
 async function applyStatBoost(agentKey, stat){
   try {
@@ -254,85 +256,15 @@ function _mapKeyFor(s){
   return m[t] || t.replace(/\s+/g,'-');
 }
 
-const _MAP_SVG = `<svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style="background:#0a0806">
-  <defs>
-    <filter id="ael-glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="4" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-
-  <!-- Map PNG fills full width -->
-  <image href="${API_BASE}/assets/map.png" x="0" y="0" width="520" height="320" preserveAspectRatio="xMidYMid slice"/>
-
-  <!-- District fog/glow overlays — full width -->
-  <g class="ael-district" data-key="upper-spire">
-    <rect class="d-fog" x="0" y="0" width="520" height="46" fill="#0a0806" opacity="0.86"/>
-    <rect class="d-glow-border" x="1" y="1" width="518" height="44" fill="rgba(154,123,214,0.08)" stroke="#9a7bd6" stroke-width="2" rx="1"/>
-    <text class="d-label" x="10" y="30" fill="#9a7bd6" font-size="7" font-family="monospace">UPPER-SPIRE</text>
-    <text class="ael-here ael-here-hidden" x="260" y="30" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
-  </g>
-  <g class="ael-district" data-key="zenith-wards">
-    <rect class="d-fog" x="0" y="46" width="520" height="74" fill="#0a0806" opacity="0.84"/>
-    <rect class="d-glow-border" x="1" y="47" width="518" height="72" fill="rgba(79,159,224,0.06)" stroke="#4f9fe0" stroke-width="2" rx="1"/>
-    <text class="d-label" x="10" y="88" fill="#4f9fe0" font-size="7" font-family="monospace">ZENITH WARDS</text>
-    <text class="ael-here ael-here-hidden" x="260" y="88" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
-  </g>
-  <g class="ael-district" data-key="glass-arch">
-    <rect class="d-fog" x="0" y="120" width="520" height="55" fill="#0a0806" opacity="0.84"/>
-    <rect class="d-glow-border" x="1" y="121" width="518" height="53" fill="rgba(62,203,143,0.06)" stroke="#3ecb8f" stroke-width="2" rx="1"/>
-    <text class="d-label" x="10" y="152" fill="#3ecb8f" font-size="7" font-family="monospace">GLASS ARCH</text>
-    <text class="ael-here ael-here-hidden" x="260" y="152" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
-  </g>
-  <g class="ael-district" data-key="sunken-market">
-    <rect class="d-fog" x="0" y="175" width="520" height="45" fill="#0a0806" opacity="0.84"/>
-    <rect class="d-glow-border" x="1" y="176" width="518" height="43" fill="rgba(70,181,200,0.06)" stroke="#46b5c8" stroke-width="2" rx="1"/>
-    <text class="d-label" x="10" y="202" fill="#46b5c8" font-size="7" font-family="monospace">SUNKEN MARKET</text>
-    <text class="ael-here ael-here-hidden" x="260" y="202" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
-  </g>
-  <g class="ael-district" data-key="the-sump">
-    <rect class="d-fog" x="0" y="220" width="520" height="45" fill="#0a0806" opacity="0.86"/>
-    <rect class="d-glow-border" x="1" y="221" width="518" height="43" fill="rgba(226,85,74,0.08)" stroke="#e2554a" stroke-width="2.5" rx="1"/>
-    <text class="d-label" x="10" y="248" fill="#e2554a" font-size="7" font-family="monospace">THE SUMP</text>
-    <text class="ael-here ael-here-hidden" x="260" y="248" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
-  </g>
-  <g class="ael-district" data-key="undergrid">
-    <rect class="d-fog" x="0" y="265" width="520" height="55" fill="#0a0806" opacity="0.88"/>
-    <rect class="d-glow-border" x="1" y="266" width="518" height="53" fill="rgba(200,161,79,0.06)" stroke="#c8a14f" stroke-width="2" rx="1"/>
-    <text class="d-label" x="10" y="295" fill="#c8a14f" font-size="7" font-family="monospace">UNDERGRID</text>
-    <text class="ael-here ael-here-hidden" x="260" y="295" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
-  </g>
-
-</svg>`;
-
-let _mapInjected = false;
 function renderMap(){
   const mapEl = document.getElementById('mapBody');
   if(!mapEl) return;
-  if(!_mapInjected){ mapEl.innerHTML = _MAP_SVG; _mapInjected = true; }
-  const cur = _mapKeyFor(gameState && gameState.location);
-  if(cur) discoveredLocations.add(cur.replace(/-/g,' '));
-  const discovered = new Set([...discoveredLocations].map(_mapKeyFor));
-  if(cur) discovered.add(cur);
-  document.querySelectorAll('.ael-district').forEach(g => {
-    const k = g.getAttribute('data-key');
-    g.classList.remove('ael-current','ael-discovered','ael-undiscovered');
-    const here = g.querySelector('.ael-here');
-    const lbl = g.querySelector('.d-label');
-    if(k === cur){
-      g.classList.add('ael-current');
-      if(here) here.classList.remove('ael-here-hidden');
-      if(lbl) lbl.setAttribute('fill','#fff');
-    } else if(discovered.has(k)){
-      g.classList.add('ael-discovered');
-      if(here) here.classList.add('ael-here-hidden');
-      if(lbl) lbl.setAttribute('fill','#e8e2d0');
-    } else {
-      g.classList.add('ael-undiscovered');
-      if(here) here.classList.add('ael-here-hidden');
-      if(lbl){ lbl.setAttribute('fill','#3a3020'); lbl.textContent = '???'; }
-    }
-  });
+  const loc = (gameState && gameState.location) ? gameState.location.toUpperCase() : '???';
+  mapEl.innerHTML = '<div style="position:relative;width:100%;flex:1;min-height:0;">'
+    + '<img src="'+API_BASE+'/assets/map.png" style="width:100%;height:100%;object-fit:cover;display:block;" alt="Aethelgard Map">'
+    + '<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(10,8,6,0.82);border:1px solid #c8922a;padding:4px 12px;font-family:\'Press Start 2P\',monospace;font-size:clamp(5px,0.55vw,8px);color:#f0c060;white-space:nowrap;letter-spacing:1px;">'
+    + '&gt;&gt; YOU ARE HERE: '+loc+' &lt;&lt;'
+    + '</div></div>';
 }
 
 function pushDialogue(speaker, text){
@@ -615,6 +547,15 @@ async function sendAct(){
     const res = await apiPost('/turn', {action: val, session_id: "default"});
     gameState = res.state;
     checkDeaths();
+    _pendingLevelUpMsg = null;
+    // gainXP before renderParty so _levelUpPending is set when cards render
+    if(res.dice && (res.dice.result === 'success' || res.dice.result === 'partial')) gainXP(res.dice.actor || currentRole, 1);
+    // Always give 1 XP for completing a turn (dice or not)
+    else gainXP(currentRole, 1);
+    // XP from objectives completed this turn
+    (res.state&&res.state.objectives||[]).forEach(o => {
+      if(o.status==='done' && (!_prevObjStatuses||_prevObjStatuses[o.id]!=='done')) gainXP(currentRole, 2);
+    });
     renderParty();
     renderSuggestions(res.choices);
     if(res.trace) renderTrace(res.trace);
@@ -623,11 +564,6 @@ async function sendAct(){
     const outcome = res.narration_outcome || '';
     const narrationText = (res.narration_setup || '') + ' ' + (res.narration_outcome || '');
     scanForLore(narrationText);
-    if(res.dice && res.dice.result === 'success') gainXP(res.dice.actor || currentRole, 1);
-    // XP from objectives completed this turn
-    (res.state&&res.state.objectives||[]).forEach(o => {
-      if(o.status==='done' && (!_prevObjStatuses||_prevObjStatuses[o.id]!=='done')) gainXP(currentRole, 2);
-    });
     // Track who spoke in followups so banter skips them
     _lastFollowupAgents = new Set((res.followups||[]).map(f=>f.agent.toLowerCase()));
     // Travel events
@@ -652,6 +588,7 @@ async function sendAct(){
           appendNarration('<br><br>' + outcome);
           pushDialogue('GM', outcome);
         }
+        if(_pendingLevelUpMsg){ appendNarration(_pendingLevelUpMsg); _pendingLevelUpMsg = null; }
         if(res.followups && res.followups.length){
           setTimeout(function(){
             const agentTexts = res.followups.map(f=>{
@@ -671,6 +608,7 @@ async function sendAct(){
       appendNarration(combined);
       if (setup) pushDialogue('GM', setup);
       if (outcome) pushDialogue('GM', outcome);
+      if(_pendingLevelUpMsg){ appendNarration(_pendingLevelUpMsg); _pendingLevelUpMsg = null; }
       if(res.followups && res.followups.length){
         setTimeout(function(){
           const agentTexts = res.followups.map(f => {
@@ -821,6 +759,10 @@ function renderObjectives(){
   changed.forEach(o => {
     showToast((STATUS_TOAST[o.status]||'')+o.text, STATUS_TOAST_COLOR[o.status]||'#c8922a');
     try { o.status === 'done' ? _sfx.success() : _sfx.fail(); } catch {}
+    if(o.status === 'done' || o.status === 'failed'){
+      objOpen = true;
+      setTimeout(() => { objOpen = false; renderObjectives(); }, 5000);
+    }
   });
 
   if(!objOpen){ panel.classList.remove('open'); return; }
