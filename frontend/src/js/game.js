@@ -573,23 +573,6 @@ function unlockDie(){
   if(btn) btn.classList.remove('locked');
 }
 
-function showDieIntroPopup(){
-  let popup = document.getElementById('dieIntroPopup');
-  if(popup) return;
-  popup = document.createElement('div');
-  popup.id = 'dieIntroPopup';
-  popup.className = 'die-intro-popup';
-  popup.innerHTML = '<div class="dip-title">[ LUCK ROLL ]<button class="dip-x" onclick="document.getElementById(\'dieIntroPopup\').remove()">[X]</button></div>'
-    +'<div class="dip-body">'
-    +'When you try something risky, the game automatically tests your chances with a number between 1 and 20.<br><br>'
-    +'The best agent for the job takes the roll - <b>Jax</b> for fights, <b>Lyra</b> for mysteries, <b>Bram</b> for healing, <b>Seren</b> for talking your way out.<br><br>'
-    +'<b>HIGH enough roll</b> = it works perfectly (meet or beat the DC)<br>'
-    +'<b>LOW roll</b> = it fails, and things get worse<br><br>'
-    +'The [!] DIE ROLL tab shows a history of every roll.'
-    +'</div>'
-    +'<button class="dip-close" onclick="document.getElementById(\'dieIntroPopup\').remove()">GOT IT &gt;</button>';
-  document.body.appendChild(popup);
-}
 
 async function sendAct(){
   const val = pInput.value.trim();
@@ -657,7 +640,6 @@ async function sendAct(){
       if(!dieEverRolled){
         dieEverRolled = true;
         unlockDie();
-        setTimeout(showDieIntroPopup, 2200);
       }
       appendNarration(setup || 'The Game Master calls for a die roll.');
       pushDialogue('GM', setup || '');
