@@ -353,7 +353,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1008;}
 .hp-gain-flash { animation:hp-gain-flash 0.9s ease-out; }
 
 /* Map view */
-#mapBody { padding: 0; overflow-y:auto; }
+#mapView { overflow:visible; }
+#mapView .cv-body { overflow-y:auto; padding:0; }
 
 /* Status effect badges */
 .effects-row { width:100%;display:flex;flex-wrap:wrap;gap:2px;justify-content:center;min-height:clamp(6px,0.6vw,10px); }
