@@ -121,7 +121,8 @@ function renderTrace(traceData){
     const cls = type === 'dice' ? 'roll' : type === 'state_update' ? 'info' : 'done';
     let text = '';
     if(type === 'dice'){
-      text = t.actor+' - '+t.check+' vs DC '+t.difficulty+' \u2192 rolled '+t.roll+(t.modifier?' +'+t.modifier:'')+' = '+t.total+' ('+t.result.toUpperCase()+')';
+      const chk = (t.check||'').replace(/ check$/i,'').replace(/ roll$/i,'') || 'luck roll';
+      text = t.actor+' - '+chk+' \u2192 rolled '+t.roll+(t.modifier?' +'+t.modifier:'')+' = '+t.total+' ('+t.result.toUpperCase()+')';
       if(t.consequence) text += '<br><span style="color:#6a5030;font-size:0.9em">\u21B3 '+t.consequence+'</span>';
     } else if(type === 'narration'){
       text = '\u270E '+(t.text || '');

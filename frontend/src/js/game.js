@@ -529,8 +529,8 @@ const HELP_TEXT = '<b>[ AGENTS LEAGUE - HELP ]</b><br><br>'
   +'"Attack the automaton guarding the console"<br>'
   +'"Ask Bram to tend to the wounded"<br><br>'
   +'<b>DICE ROLLS:</b><br>'
-  +'Risky actions trigger a D20 check. Meet or beat the DC = success. Below the DC = failure. '
-  +'The party member with the best stat for the task rolls - not always you.<br><br>'
+  +'Risky actions trigger an automatic luck roll (1-20). Roll high = it works. Roll low = it fails or backfires. '
+  +'The party member with the best stat for the situation rolls - not always you.<br><br>'
   +'<b>SPECIAL ABILITIES:</b><br>'
   +'The <b>[!] POWER</b> button activates your agent\'s special ability (once per session):<br>'
   +'Warrior = OVERPOWER &nbsp; Mage = ARCANE SIGHT<br>'
@@ -564,7 +564,7 @@ function showDieIntroPopup(){
     +'<div class="dip-body">'
     +'When you try something risky, the game automatically tests your chances with a number between 1 and 20.<br><br>'
     +'The best agent for the job takes the roll - <b>Jax</b> for fights, <b>Lyra</b> for mysteries, <b>Bram</b> for healing, <b>Seren</b> for talking your way out.<br><br>'
-    +'<b>HIGH enough roll</b> = it works perfectly (meet or beat the DC)<br>'
+    +'<b>HIGH roll</b> = it works perfectly<br>'
     +'<b>LOW roll</b> = it fails, and things get worse<br><br>'
     +'The [!] DIE ROLL tab shows a history of every roll.'
     +'</div>'
@@ -645,8 +645,8 @@ async function sendAct(){
       pushDialogue('GM', setup || '');
       setStage('die');
       const diceActor = (res.dice.actor || currentRole).toUpperCase();
-      const diceCheck = (res.dice.check || 'ability check').toUpperCase();
-      dieLabel.textContent = diceActor + ' - ' + diceCheck + ' (D20 ROLL)';
+      const diceCheck = (res.dice.check || 'luck roll').toUpperCase().replace(' CHECK','').replace(' ROLL','');
+      dieLabel.textContent = diceActor + ' - ' + diceCheck + ' (LUCK ROLL)';
       startDieAnimation(res.dice.roll, res.dice.total, res.dice.modifier, res.dice.result, res.dice.consequence, function(){
         if(outcome){
           appendNarration('<br><br>' + outcome);

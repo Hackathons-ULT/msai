@@ -94,7 +94,7 @@ function renderDieHistory(){
     const label = ok ? 'SUCCESS' : 'FAIL';
     const col = ok ? '#5aaa44' : '#cc4444';
     return '<div class="dh-row" style="border-left:3px solid '+col+'">'
-      +'<span class="dh-actor">'+(d.actor||'?').toUpperCase()+' - '+(d.check||'CHECK').toUpperCase()+'</span>'
+      +'<span class="dh-actor">'+(d.actor||'?').toUpperCase()+' - '+((d.check||'').toUpperCase().replace(' CHECK','').replace(' ROLL','')||'LUCK ROLL')+'</span>'
       +'<span class="dh-result" style="color:'+col+'">'+d.roll+modStr+' = '+d.total+' ('+label+')</span>'
       +(d.consequence ? '<span class="dh-con">'+d.consequence+'</span>' : '')
       +'</div>';
