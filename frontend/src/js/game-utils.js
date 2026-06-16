@@ -91,9 +91,8 @@ function renderDieHistory(){
   histEl.innerHTML = dieHistory.map(function(d){
     const modStr = d.modifier > 0 ? ' +'+d.modifier : d.modifier < 0 ? ' '+d.modifier : '';
     const ok = d.result === 'success';
-    const partial = d.result === 'partial';
-    const label = ok ? 'SUCCESS' : partial ? 'PARTIAL' : 'FAIL';
-    const col = ok ? '#5aaa44' : partial ? '#cc8822' : '#cc4444';
+    const label = ok ? 'SUCCESS' : 'FAIL';
+    const col = ok ? '#5aaa44' : '#cc4444';
     return '<div class="dh-row" style="border-left:3px solid '+col+'">'
       +'<span class="dh-actor">'+(d.actor||'?').toUpperCase()+' - '+(d.check||'CHECK').toUpperCase()+'</span>'
       +'<span class="dh-result" style="color:'+col+'">'+d.roll+modStr+' = '+d.total+' ('+label+')</span>'

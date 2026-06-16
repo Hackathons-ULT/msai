@@ -548,7 +548,7 @@ const HELP_TEXT = '<b>[ AGENTS LEAGUE - HELP ]</b><br><br>'
   +'"Attack the automaton guarding the console"<br>'
   +'"Ask Bram to tend to the wounded"<br><br>'
   +'<b>DICE ROLLS:</b><br>'
-  +'Risky actions trigger a D20 check. Roll high = full success. Mid = partial. Low = complications. '
+  +'Risky actions trigger a D20 check. Meet or beat the DC = success. Below the DC = failure. '
   +'The party member with the best stat for the task rolls - not always you.<br><br>'
   +'<b>SPECIAL ABILITIES:</b><br>'
   +'The <b>[!] POWER</b> button activates your agent\'s special ability (once per session):<br>'
@@ -583,9 +583,8 @@ function showDieIntroPopup(){
     +'<div class="dip-body">'
     +'When you try something risky, the game automatically tests your chances with a number between 1 and 20.<br><br>'
     +'The best agent for the job takes the roll - <b>Jax</b> for fights, <b>Lyra</b> for mysteries, <b>Bram</b> for healing, <b>Seren</b> for talking your way out.<br><br>'
-    +'<b>HIGH number</b> = it works perfectly<br>'
-    +'<b>MIDDLE</b> = it works, but something goes wrong too<br>'
-    +'<b>LOW number</b> = it fails, and things get worse<br><br>'
+    +'<b>HIGH enough roll</b> = it works perfectly (meet or beat the DC)<br>'
+    +'<b>LOW roll</b> = it fails, and things get worse<br><br>'
     +'The [!] DIE ROLL tab shows a history of every roll.'
     +'</div>'
     +'<button class="dip-close" onclick="document.getElementById(\'dieIntroPopup\').remove()">GOT IT &gt;</button>';
@@ -642,11 +641,7 @@ async function sendAct(){
     const outcome = res.narration_outcome || '';
     const narrationText = (res.narration_setup || '') + ' ' + (res.narration_outcome || '');
     scanForLore(narrationText);
-    // XP from dice outcomes
-    if(res.dice){
-      if(res.dice.result === 'success') gainXP(res.dice.actor || currentRole, 1);
-      else if(res.dice.result === 'partial') gainXP(res.dice.actor || currentRole, 0);
-    }
+    if(res.dice && res.dice.result === 'success') gainXP(res.dice.actor || currentRole, 1);
     // XP from objectives completed this turn
     (res.state&&res.state.objectives||[]).forEach(o => {
       if(o.status==='done' && (!_prevObjStatuses||_prevObjStatuses[o.id]!=='done')) gainXP(currentRole, 2);
@@ -726,8 +721,7 @@ function startDieAnimation(finalRoll, finalTotal, modifier, finalResult, finalCo
   const totalTicks = 28;
   const numEl = dieNum;
   const outcome = finalResult === 'success';
-  const isPartial = finalResult === 'partial';
-  const outcomeLabel = outcome ? 'SUCCESS' : isPartial ? 'PARTIAL' : 'FAIL';
+  const outcomeLabel = outcome ? 'SUCCESS' : 'FAIL';
   function getDelay(tick){
     if(tick<8) return 40;
     if(tick<16) return 60;
@@ -747,12 +741,12 @@ function startDieAnimation(finalRoll, finalTotal, modifier, finalResult, finalCo
       lastDieTotal = finalTotal;
       const modStr = modifier > 0 ? ' +'+modifier : modifier < 0 ? ' '+modifier : '';
       lastDieResultText = 'ROLLED '+finalRoll+modStr+' = '+finalTotal+' - '+outcomeLabel + (finalConsequence ? ' - '+finalConsequence : '');
-      lastDieColor = outcome ? '#2a5a22' : isPartial ? '#7a5a12' : '#7a2222';
+      lastDieColor = outcome ? '#2a5a22' : '#7a2222';
       dieResult.textContent = lastDieResultText;
       dieResult.style.color = lastDieColor;
       dieResult.style.display = 'block';
       dieRolling = false;
-      try { outcome ? _sfx.success() : isPartial ? _sfx.partial() : _sfx.fail(); } catch {}
+      try { outcome ? _sfx.success() : _sfx.fail(); } catch {}
       try { setTimeout(() => _bgm.setTension(0), 1800); } catch {}
       fetchTrace();
       setTimeout(function(){ if(onComplete) onComplete(); }, 1500);

@@ -629,9 +629,6 @@ class LocalAgentWorkflow:
             if outcome == "success" and wounded:
                 patch.setdefault("health_changes", {})
                 patch["health_changes"][wounded[0]["agent"]] = 4
-            elif outcome == "partial" and wounded:
-                patch.setdefault("health_changes", {})
-                patch["health_changes"][wounded[0]["agent"]] = 2
 
         elif intent == "stealth":
             if outcome == "success":
@@ -642,8 +639,6 @@ class LocalAgentWorkflow:
         elif intent == "investigate":
             if outcome == "success":
                 patch["flags_set"]["clue_found"] = True
-            elif outcome == "partial":
-                patch["flags_set"]["partial_clue"] = True
 
         elif intent == "travel":
             if outcome == "failure":
@@ -652,8 +647,6 @@ class LocalAgentWorkflow:
         elif intent == "arcana":
             if outcome == "success":
                 patch["flags_set"]["lore_revealed"] = True
-            elif outcome == "partial":
-                patch["flags_set"]["partial_lore"] = True
             elif outcome == "failure":
                 patch["flags_set"]["wild_magic"] = True
 
@@ -787,7 +780,7 @@ class LocalAgentWorkflow:
             "agents' perspectives naturally into the description.\n\n"
             "Part Two (Outcome): The narrative result of the action. Describe what actually happens.\n"
             "Blend any dice result into the story. A success means the action lands well,\n"
-            "a failure means complications arise, a partial means mixed results.\n"
+            "a failure means complications arise.\n"
             "If there is no dice, describe a natural consequence of the action.\n"
             "Weave the mechanical state changes listed below into the narrative naturally.\n"
             "Do not list them mechanically; describe them as part of the story.\n\n"
