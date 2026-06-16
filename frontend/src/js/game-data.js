@@ -24,7 +24,7 @@ const PNG_FILE = {
 };
 
 const AGENT_POWERS = {
-  warrior: { name:'OVERPOWER', desc:'Joshua channels raw fury - next physical check gets a massive bonus.', cmd:'Joshua enters a battle fury, channeling every ounce of strength into one decisive action.' },
+  warrior: { name:'OVERPOWER', desc:'Joshua channels raw fury - next attack or strength action gets a massive bonus.', cmd:'Joshua enters a battle fury, channeling every ounce of strength into one decisive action.' },
   mage:    { name:'ARCANE SIGHT', desc:'Lyra reveals what is hidden - pierces illusions, concealment and arcane locks.', cmd:'Lyra channels arcane sight, her eyes glowing as hidden truths are forced into the light.' },
   healer:  { name:'MEND ALL', desc:'Bram restores vitality to every party member at once.', cmd:'Bram invokes his full healing power, mending the wounds of every party member simultaneously.' },
   bard:    { name:'RALLY CRY', desc:'Seren\'s music surges - the next social or morale moment swings in your favour.', cmd:'Seren unleashes a powerful rally cry, her music igniting courage and conviction in the whole party.' },

@@ -203,7 +203,7 @@ class LocalAgentWorkflow:
         self.gm.record_trace("narration_setup", {"text": narration_setup})
         self.gm.record_trace("narration_outcome", {"text": narration_outcome})
 
-        choices = self._build_choices(plan.intent, dice_result)
+        choices = self._build_choices(plan.intent, dice_result, full_narration, action)
         return TurnResult(
             narration=full_narration,
             narration_setup=narration_setup,
@@ -847,30 +847,66 @@ class LocalAgentWorkflow:
             return text[:split_at].strip(), text[split_at:].strip()
         return text, ""
 
-    def _build_choices(self, intent: str, dice_result: dict | None) -> list[str]:
+    def _build_choices(self, intent: str, dice_result: dict | None, narration: str = "", last_action: str = "") -> list[str]:
+        fallback = self._static_choices(intent, dice_result)
+        if not self.llm.available:
+            return fallback
+
+        state = self.gm.get_state()
+        objectives = [o for o in state.get("objectives", []) if o.get("status") == "active"]
+        flags = state.get("world_flags", {})
+        location = state.get("location", "unknown")
+        party = [{"name": m["name"], "health": m["health"], "max_health": m["max_health"]} for m in state.get("party", [])]
+
+        prompt = (
+            "You are a game master assistant. Based on the current game state, suggest 3 short player actions "
+            "that would be interesting and meaningful to do NEXT. "
+            "Rules:\n"
+            "- Each suggestion must be a concrete action (5-10 words), written as if the player is typing it\n"
+            "- Do NOT repeat or paraphrase the last action\n"
+            "- Vary the types: e.g. one social, one investigative, one bold/combat option\n"
+            "- Reflect the current location, active objectives, and what just happened\n"
+            "- Return ONLY a JSON array of 3 strings, nothing else"
+        )
+        context = {
+            "location": location,
+            "last_action": last_action,
+            "what_just_happened": narration[-300:] if narration else "",
+            "dice_result": (dice_result or {}).get("result"),
+            "active_objectives": [o.get("description", "") for o in objectives[:3]],
+            "world_flags": list(flags.keys())[-10:],
+            "party_hp": party,
+        }
+
+        result = self.llm.complete(
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": json.dumps(context, ensure_ascii=False)},
+            ],
+            temperature=0.85,
+            max_tokens=120,
+        )
+        if not result.used or not result.text:
+            return fallback
+        try:
+            text = result.text.strip()
+            start, end = text.find("["), text.rfind("]")
+            if start == -1 or end == -1:
+                return fallback
+            choices = json.loads(text[start:end+1])
+            choices = [c for c in choices if isinstance(c, str) and c.strip()]
+            return choices[:3] if len(choices) >= 3 else fallback
+        except Exception:
+            return fallback
+
+    def _static_choices(self, intent: str, dice_result: dict | None) -> list[str]:
         if dice_result and dice_result.get("result") == "failure":
-            return [
-                "Try a more cautious approach.",
-                "Ask the Mage to inspect the scene.",
-                "Have the Rogue look for another route.",
-            ]
+            return ["Try a more cautious approach.", "Ask the Mage to inspect the scene.", "Find another way in."]
         if intent == "combat":
-            return [
-                "Press the attack.",
-                "Hold position and defend.",
-                "Coordinate with the Rogue for an opening.",
-            ]
+            return ["Press the attack.", "Hold position and defend.", "Look for an escape route."]
         if intent in {"investigate", "travel", "arcana"}:
-            return [
-                "Inspect the next clue.",
-                "Ask the party to confer.",
-                "Move deeper into the area.",
-            ]
-        return [
-            "Continue the conversation.",
-            "Ask for more detail.",
-            "Change strategy.",
-        ]
+            return ["Inspect the next clue.", "Ask a local what they know.", "Move deeper into the area."]
+        return ["Ask someone nearby for information.", "Search the area carefully.", "Talk to your party about what to do next."]
 
     def run_intro(self, session_id: str = "default") -> str:
         state = self.gm.get_state()

@@ -303,26 +303,6 @@ const _MAP_SVG = `<svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg" 
     <text class="ael-here ael-here-hidden" x="260" y="295" text-anchor="middle" fill="#fff" font-size="7" font-family="monospace" filter="url(#ael-glow)">&gt;&gt; YOU ARE HERE &lt;&lt;</text>
   </g>
 
-  <!-- Location info overlay — top-right corner -->
-  <rect x="356" y="0" width="164" height="120" fill="rgba(10,8,6,0.82)" stroke="#3a3424" stroke-width="1"/>
-  <text x="366" y="15" fill="#8a8266" font-size="6" font-family="monospace">AETHELGARD</text>
-  <line x1="358" y1="20" x2="518" y2="20" stroke="#3a3424" stroke-width="1"/>
-  <text x="366" y="34" fill="#6a6050" font-size="6" font-family="monospace">LOCATION</text>
-  <text id="ael-panel-name" x="366" y="52" fill="#fff" font-size="8" font-family="monospace">---</text>
-  <line x1="358" y1="58" x2="518" y2="58" stroke="#3a3424" stroke-width="1"/>
-  <text id="ael-panel-desc1" x="366" y="72" fill="#bdb59a" font-size="5.5" font-family="monospace"></text>
-  <text id="ael-panel-desc2" x="366" y="85" fill="#bdb59a" font-size="5.5" font-family="monospace"></text>
-  <text id="ael-panel-desc3" x="366" y="98" fill="#bdb59a" font-size="5.5" font-family="monospace"></text>
-
-  <!-- District list overlay — bottom-right corner -->
-  <rect x="356" y="200" width="164" height="120" fill="rgba(10,8,6,0.80)" stroke="#3a3424" stroke-width="1"/>
-  <text x="366" y="215" fill="#5a5040" font-size="5" font-family="monospace">DISTRICTS</text>
-  <circle cx="370" cy="227" r="2.5" fill="#9a7bd6"/><text x="376" y="231" fill="#6a6050" font-size="5" font-family="monospace">UPPER-SPIRE</text>
-  <circle cx="370" cy="241" r="2.5" fill="#4f9fe0"/><text x="376" y="245" fill="#6a6050" font-size="5" font-family="monospace">ZENITH WARDS</text>
-  <circle cx="370" cy="255" r="2.5" fill="#3ecb8f"/><text x="376" y="259" fill="#6a6050" font-size="5" font-family="monospace">GLASS ARCH</text>
-  <circle cx="370" cy="269" r="2.5" fill="#46b5c8"/><text x="376" y="273" fill="#6a6050" font-size="5" font-family="monospace">SUNKEN MKT</text>
-  <circle cx="370" cy="283" r="2.5" fill="#e2554a"/><text x="376" y="287" fill="#6a6050" font-size="5" font-family="monospace">THE SUMP</text>
-  <circle cx="370" cy="297" r="2.5" fill="#c8a14f"/><text x="376" y="301" fill="#6a6050" font-size="5" font-family="monospace">UNDERGRID</text>
 </svg>`;
 
 let _mapInjected = false;
@@ -353,16 +333,6 @@ function renderMap(){
       if(lbl){ lbl.setAttribute('fill','#3a3020'); lbl.textContent = '???'; }
     }
   });
-  const meta = _MAP_DISTRICTS[cur];
-  if(meta){
-    const n = document.getElementById('ael-panel-name');
-    if(n) n.textContent = meta.name;
-    const words = meta.desc.split(' ');
-    const lines = []; let ln = '';
-    words.forEach(w => { if((ln+' '+w).trim().length > 18){ lines.push(ln.trim()); ln=w; } else { ln=(ln+' '+w).trim(); } });
-    if(ln) lines.push(ln.trim());
-    [1,2,3].forEach(i => { const el = document.getElementById('ael-panel-desc'+i); if(el) el.textContent = lines[i-1]||''; });
-  }
 }
 
 function pushDialogue(speaker, text){
@@ -454,21 +424,29 @@ const _UNIVERSAL_SUGGESTS = [
   'Ask Seren to gather information',
 ];
 let _lastAction = '';
-function renderSuggestions(){
+let _lastSuggestions = [];
+function renderSuggestions(backendChoices){
   const row = document.getElementById('suggestRow');
   if(!row) return;
-  const loc = gameState && _mapKeyFor(gameState.location);
-  const hp = gameState ? (gameState.party||[]).reduce((s,m)=>s+Math.max(0,m.health),0) : 100;
-  const maxHp = gameState ? (gameState.party||[]).reduce((s,m)=>s+m.max_health,0) : 100;
-  let pool = [...(_LOCATION_SUGGESTS[loc]||[]),..._UNIVERSAL_SUGGESTS];
-  if(hp < maxHp * 0.5) pool = ['Tell Bram to heal the wounded','Find a safe place to rest','Use a healing potion if you have one',...pool];
-  // Exclude what player just did (case-insensitive partial match)
-  if(_lastAction) pool = pool.filter(s => !s.toLowerCase().includes(_lastAction.toLowerCase().slice(0,12)));
-  // Rotate per turn using _turnCount as seed
-  const seed = _turnCount * 1013 + 7;
-  for(let i=pool.length-1;i>0;i--){ const j=Math.abs((seed*(i+1)*9301+49297))%pool.length; [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  let pool;
+  if(backendChoices && backendChoices.length >= 3){
+    pool = backendChoices.slice(0, 3);
+    _lastSuggestions = pool;
+  } else if(_lastSuggestions.length >= 3){
+    pool = _lastSuggestions;
+  } else {
+    const loc = gameState && _mapKeyFor(gameState.location);
+    const hp = gameState ? (gameState.party||[]).reduce((s,m)=>s+Math.max(0,m.health),0) : 100;
+    const maxHp = gameState ? (gameState.party||[]).reduce((s,m)=>s+m.max_health,0) : 100;
+    pool = [...(_LOCATION_SUGGESTS[loc]||[]),..._UNIVERSAL_SUGGESTS];
+    if(hp < maxHp * 0.5) pool = ['Tell Bram to heal the wounded','Find a safe place to rest','Use a healing potion if you have one',...pool];
+    if(_lastAction) pool = pool.filter(s => !s.toLowerCase().includes(_lastAction.toLowerCase().slice(0,12)));
+    const seed = _turnCount * 1013 + 7;
+    for(let i=pool.length-1;i>0;i--){ const j=Math.abs((seed*(i+1)*9301+49297))%pool.length; [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    pool = pool.slice(0,3);
+  }
   row.innerHTML = '<span class="suggest-label">TRY:</span>'
-    + pool.slice(0,3).map(s => `<button class="suggest-chip" data-sug="${s.replace(/"/g,'&quot;')}">${s}</button>`).join('');
+    + pool.map(s => `<button class="suggest-chip" data-sug="${s.replace(/"/g,'&quot;')}">${s}</button>`).join('');
   row.querySelectorAll('.suggest-chip').forEach(btn => {
     btn.onclick = () => { const inp = document.getElementById('pInput'); if(inp){ inp.value = btn.dataset.sug; inp.focus(); } };
   });
@@ -638,7 +616,7 @@ async function sendAct(){
     gameState = res.state;
     checkDeaths();
     renderParty();
-    renderSuggestions();
+    renderSuggestions(res.choices);
     if(res.trace) renderTrace(res.trace);
     showGM();
     const setup = res.narration_setup || '';
