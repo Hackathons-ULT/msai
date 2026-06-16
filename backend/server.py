@@ -34,7 +34,7 @@ DEFAULT_STATE = GameState(
     location="The Sump",
     active_quest="Investigate the Clockwork Plague",
     party=[
-        apply_class_stats(PartyMember(agent="Warrior", name="Jax", health=20, inventory=["Iron Club"])),
+        apply_class_stats(PartyMember(agent="Warrior", name="Jax", health=20, inventory=["Wooden Club"])),
         apply_class_stats(PartyMember(agent="Mage", name="Lyra", health=16, inventory=["Staff"])),
         apply_class_stats(PartyMember(agent="Healer", name="Bram", health=18, inventory=["Medkit"])),
         apply_class_stats(PartyMember(agent="Bard", name="Seren", health=16, inventory=["Lute"])),
@@ -59,7 +59,7 @@ class ResetRequest(BaseModel):
     location: str = "The Sump"
     active_quest: str = "Investigate the Clockwork Plague"
     party: List[dict] = [
-        {"agent": "Warrior", "name": "Jax", "health": 20, "max_health": 20, "inventory": ["Iron Club"]},
+        {"agent": "Warrior", "name": "Jax", "health": 20, "max_health": 20, "inventory": ["Wooden Club"]},
         {"agent": "Mage", "name": "Lyra", "health": 16, "max_health": 20, "inventory": ["Staff"]},
         {"agent": "Healer", "name": "Bram", "health": 18, "max_health": 20, "inventory": ["Medkit"]},
         {"agent": "Bard", "name": "Seren", "health": 16, "max_health": 20, "inventory": ["Lute"]},

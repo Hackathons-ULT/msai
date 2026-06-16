@@ -203,6 +203,7 @@ class LocalAgentWorkflow:
         self.gm.record_trace("narration_setup", {"text": narration_setup})
         self.gm.record_trace("narration_outcome", {"text": narration_outcome})
 
+        self._evaluate_objectives(action, full_narration, dice_result)
         choices = self._build_choices(plan.intent, dice_result, full_narration, action)
         return TurnResult(
             narration=full_narration,
@@ -772,6 +773,17 @@ class LocalAgentWorkflow:
                 f"They can only be mentioned as fallen/unconscious bodies.\n"
             )
 
+        flags = state.get("world_flags", {})
+        kael_revealed = flags.get("kael_revealed", False)
+        kael_rule = (
+            "CRITICAL: Kael is a smuggler who the party trusts as an ally. "
+            "NEVER describe him as a 'rival', 'villain', 'antagonist', or hint at hidden motives. "
+            "Treat him as a neutral, self-interested smuggler guide — nothing more."
+        ) if not kael_revealed else (
+            "Kael has been revealed as the saboteur behind the Clockwork Plague. "
+            "He is now openly hostile and should be treated as an enemy."
+        )
+
         system_prompt = (
             "You are the Game Master narrating a fantasy RPG turn.\n"
             "Write TWO paragraphs separated by the exact delimiter: ---PART TWO---\n\n"
@@ -787,12 +799,12 @@ class LocalAgentWorkflow:
             "Write in present tense, third person. Keep each paragraph to 2-4 sentences.\n"
             "Do not label the parts. Just write them separated by the delimiter.\n"
             "IMPORTANT: Never declare a character dead, killed, or permanently incapacitated unless their HP is explicitly 0 in the party health data below. "
-            "A character with HP above 0 is still alive and fighting, even if they take damage this turn."
+            "A character with HP above 0 is still alive and fighting, even if they take damage this turn.\n"
+            + kael_rule + "\n"
             + dead_note
         )
 
         # Build active status effects string for narrator context
-        flags = state.get("world_flags", {})
         effect_names = ["poisoned","stunned","inspired","burning","shielded","weakened","blessed","cursed"]
         active_effects = []
         for m in state.get("party", []):
@@ -846,6 +858,52 @@ class LocalAgentWorkflow:
         if split_at > 0:
             return text[:split_at].strip(), text[split_at:].strip()
         return text, ""
+
+    def _evaluate_objectives(self, action: str, narration: str, dice_result: dict | None) -> None:
+        state = self.gm.get_state()
+        active_objs = [o for o in state.get("objectives", []) if o.get("status") == "active"]
+        if not active_objs:
+            return
+        if not self.llm.available:
+            return
+        obj_list = "\n".join(f'- id={o["id"]}: {o.get("text", "")}' for o in active_objs)
+        dice_note = ""
+        if dice_result:
+            dice_note = f"Dice roll result: {dice_result.get('result','?')} (rolled {dice_result.get('total','?')})"
+        prompt = (
+            "You are a game master assistant. Based on the player action, narration, and dice result, "
+            "decide which active objectives were CLEARLY completed or failed THIS turn.\n"
+            "Only mark done if the narration explicitly confirms the objective was achieved.\n"
+            "Return a JSON array of {\"id\": \"<id>\", \"status\": \"done\" or \"failed\"} for changed objectives only. "
+            "Return [] if nothing changed."
+        )
+        context = {
+            "player_action": action,
+            "narration": narration[-500:],
+            "dice": dice_note,
+            "active_objectives": obj_list,
+        }
+        result = self.llm.complete(
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": json.dumps(context, ensure_ascii=False)},
+            ],
+            temperature=0.1,
+            max_tokens=120,
+        )
+        if not result.used or not result.text:
+            return
+        try:
+            text = result.text.strip()
+            start, end = text.find("["), text.rfind("]")
+            if start == -1 or end == -1:
+                return
+            updates = json.loads(text[start:end+1])
+            if updates:
+                self.tools.apply_patch({"objectives": updates})
+                self.gm.record_trace("state_update", {"flags_set": {f"obj_{u['id']}": u["status"] for u in updates}})
+        except Exception:
+            pass
 
     def _build_choices(self, intent: str, dice_result: dict | None, narration: str = "", last_action: str = "") -> list[str]:
         fallback = self._static_choices(intent, dice_result)
