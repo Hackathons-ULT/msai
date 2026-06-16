@@ -79,7 +79,7 @@ function resetDie(){
     dieNum.textContent = dieMax;
     dieResult.style.display = 'none';
   }
-  dieLabel.textContent = 'D20 ROLL HISTORY';
+  dieLabel.textContent = 'ROLL HISTORY';
   dieRolling = false;
   renderDieHistory();
 }
