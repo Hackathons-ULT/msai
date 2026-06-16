@@ -1,4 +1,4 @@
-# Agents League — Multi-Agent AI RPG
+# Agents League - Multi-Agent AI RPG
 
 A browser-based fantasy RPG where every party member is an autonomous AI agent. You type an action; the AI Game Master orchestrates five specialist agents, retrieves world lore from Azure Foundry IQ, rolls dice, and narrates a living story in real time.
 
@@ -6,7 +6,7 @@ A browser-based fantasy RPG where every party member is an autonomous AI agent. 
 
 ## What It Does
 
-You play as an adventurer in **Aethelgard** — a decaying steampunk city choked by the **Clockwork Plague**, a contagion of corrupted machinery spreading from a sabotaged pressure core deep in The Sump. Your mission: find who caused it and stop it.
+You play as an adventurer in **Aethelgard** - a decaying steampunk city choked by the **Clockwork Plague**, a contagion of corrupted machinery spreading from a sabotaged pressure core deep in The Sump. Your mission: find who caused it and stop it.
 
 Every turn you type an action (e.g. *"I interrogate the guard about the Pressure Core"*). The system:
 
