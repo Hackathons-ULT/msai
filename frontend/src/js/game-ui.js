@@ -57,8 +57,10 @@ function renderParty(){
 
     // HP bar on card
     const hpPct = m.max_health > 0 ? Math.min(100, (m.health / m.max_health) * 100) : 0;
-    const hpColor = hpPct > 60 ? '#44aa22' : hpPct > 30 ? '#cc8822' : '#cc2222';
-    const hpRow = isDead ? '' : '<div class="card-hp-row"><div class="card-hp-bar"><div class="card-hp-fill" style="width:'+hpPct+'%;background:'+hpColor+'"></div></div><span class="card-hp-val">'+m.health+'/'+m.max_health+'</span></div>';
+    const hpCritical = m.health <= 5;
+    const hpColor = hpCritical ? '#cc2222' : hpPct > 60 ? '#44aa22' : hpPct > 30 ? '#cc8822' : '#cc2222';
+    const hpValStyle = hpCritical ? 'color:#ff4444;animation:lvl-pulse 0.6s infinite alternate' : '';
+    const hpRow = isDead ? '' : '<div class="card-hp-row"><span class="card-hp-label">HP</span><div class="card-hp-bar"><div class="card-hp-fill" style="width:'+hpPct+'%;background:'+hpColor+'"></div></div><span class="card-hp-val" style="'+hpValStyle+'">'+m.health+'/'+m.max_health+'</span></div>';
 
     // XP + level bar
     const xp = (typeof _sessionXP!=='undefined' && _sessionXP[m.agent]) || 0;
@@ -171,7 +173,7 @@ function setRole(roleKey){
 
 function showGM(){
   roleAccent.className = 'role-accent gm-acc';
-  roleBadge.textContent = 'GM';
+  roleBadge.textContent = 'GAME MASTER';
   portraitEl.style.borderColor = '#7a5228';
   speakerName.className = 'speaker';
   speakerName.style.color = '#c8922a';
