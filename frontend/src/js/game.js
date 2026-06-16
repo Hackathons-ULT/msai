@@ -453,6 +453,7 @@ const _UNIVERSAL_SUGGESTS = [
   'Search for a hidden exit',
   'Ask Seren to gather information',
 ];
+let _lastAction = '';
 function renderSuggestions(){
   const row = document.getElementById('suggestRow');
   if(!row) return;
@@ -461,9 +462,11 @@ function renderSuggestions(){
   const maxHp = gameState ? (gameState.party||[]).reduce((s,m)=>s+m.max_health,0) : 100;
   let pool = [...(_LOCATION_SUGGESTS[loc]||[]),..._UNIVERSAL_SUGGESTS];
   if(hp < maxHp * 0.5) pool = ['Tell Bram to heal the wounded','Find a safe place to rest','Use a healing potion if you have one',...pool];
-  // Shuffle with a seed based on HP so suggestions vary between turns but aren't random on re-render
-  const seed = (hp + (gameState&&gameState.objectives?gameState.objectives.filter(o=>o.status==='done').length:0));
-  for(let i=pool.length-1;i>0;i--){ const j=(seed*9301+49297)%pool.length; [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  // Exclude what player just did (case-insensitive partial match)
+  if(_lastAction) pool = pool.filter(s => !s.toLowerCase().includes(_lastAction.toLowerCase().slice(0,12)));
+  // Rotate per turn using _turnCount as seed
+  const seed = _turnCount * 1013 + 7;
+  for(let i=pool.length-1;i>0;i--){ const j=Math.abs((seed*(i+1)*9301+49297))%pool.length; [pool[i],pool[j]]=[pool[j],pool[i]]; }
   row.innerHTML = '<span class="suggest-label">TRY:</span>'
     + pool.slice(0,3).map(s => `<button class="suggest-chip" data-sug="${s.replace(/"/g,'&quot;')}">${s}</button>`).join('');
   row.querySelectorAll('.suggest-chip').forEach(btn => {
@@ -573,10 +576,28 @@ function unlockDie(){
   if(btn) btn.classList.remove('locked');
 }
 
+function showDieIntroPopup(){
+  let popup = document.getElementById('dieIntroPopup');
+  if(popup) return;
+  popup = document.createElement('div');
+  popup.id = 'dieIntroPopup';
+  popup.className = 'die-intro-popup';
+  popup.innerHTML = '<div class="dip-title">[ LUCK ROLL ]</div>'
+    +'<div class="dip-body">'
+    +'When you try something risky, the game automatically tests your chances with a number between 1 and 20.<br><br>'
+    +'The best agent for the job takes the roll - <b>Jax</b> for fights, <b>Lyra</b> for mysteries, <b>Bram</b> for healing, <b>Seren</b> for talking your way out.<br><br>'
+    +'<b>HIGH enough roll</b> = it works perfectly (meet or beat the DC)<br>'
+    +'<b>LOW roll</b> = it fails, and things get worse<br><br>'
+    +'The [!] DIE ROLL tab shows a history of every roll.'
+    +'</div>'
+    +'<button class="dip-close" onclick="document.getElementById(\'dieIntroPopup\').remove()">GOT IT &gt;</button>';
+  document.body.appendChild(popup);
+}
 
 async function sendAct(){
   const val = pInput.value.trim();
   if(!val) return;
+  _lastAction = val;
   pInput.value = '';
 
   if(val.toLowerCase() === 'help' || val === '/help'){
@@ -640,6 +661,7 @@ async function sendAct(){
       if(!dieEverRolled){
         dieEverRolled = true;
         unlockDie();
+        setTimeout(showDieIntroPopup, 2200);
       }
       appendNarration(setup || 'The Game Master calls for a die roll.');
       pushDialogue('GM', setup || '');
