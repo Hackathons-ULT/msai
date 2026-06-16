@@ -916,33 +916,30 @@ class LocalAgentWorkflow:
         location = state.get("location", "unknown")
         party = [{"name": m["name"], "health": m["health"], "max_health": m["max_health"]} for m in state.get("party", [])]
 
-        prompt = (
-            "You are a game master assistant. Based on the current game state, suggest 3 short player actions "
-            "that would be interesting and meaningful to do NEXT. "
-            "Rules:\n"
-            "- Each suggestion must be a concrete action (5-10 words), written as if the player is typing it\n"
-            "- Do NOT repeat or paraphrase the last action\n"
-            "- Vary the types: e.g. one social, one investigative, one bold/combat option\n"
-            "- Reflect the current location, active objectives, and what just happened\n"
-            "- Return ONLY a JSON array of 3 strings, nothing else"
+        active_obj_texts = [o.get("text", "") for o in objectives[:3] if o.get("text")]
+        context_str = (
+            f"Location: {location}\n"
+            f"Last player action: {last_action}\n"
+            f"What just happened: {narration[-400:] if narration else 'nothing yet'}\n"
+            f"Active objectives: {'; '.join(active_obj_texts) if active_obj_texts else 'none'}\n"
+            f"Dice result: {(dice_result or {}).get('result', 'none')}\n"
+            f"World flags: {', '.join(list(flags.keys())[-8:]) if flags else 'none'}"
         )
-        context = {
-            "location": location,
-            "last_action": last_action,
-            "what_just_happened": narration[-300:] if narration else "",
-            "dice_result": (dice_result or {}).get("result"),
-            "active_objectives": [o.get("description", "") for o in objectives[:3]],
-            "world_flags": list(flags.keys())[-10:],
-            "party_hp": party,
-        }
+        prompt = (
+            "You are a game master. Suggest exactly 3 next player actions as a JSON array.\n"
+            "Rules: each action is 4-8 words, written as if the player types it (imperative, e.g. 'Search the console for clues').\n"
+            "One social/talk action, one investigative action, one bold/combat or risky action.\n"
+            "They must be specific to what just happened and the current location. Do NOT repeat the last action.\n"
+            "Respond with ONLY the JSON array, e.g.: [\"Search the north passage\", \"Ask Bram about the wound\", \"Attack the automaton\"]"
+        )
 
         result = self.llm.complete(
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": json.dumps(context, ensure_ascii=False)},
+                {"role": "user", "content": context_str},
             ],
             temperature=0.85,
-            max_tokens=120,
+            max_tokens=150,
         )
         if not result.used or not result.text:
             return fallback

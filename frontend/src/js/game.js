@@ -351,16 +351,15 @@ const _UNIVERSAL_SUGGESTS = [
   'Ask Seren to gather information',
 ];
 let _lastAction = '';
-let _lastSuggestions = [];
+const _STATIC_FALLBACKS = new Set(["Inspect the next clue.","Ask a local what they know.","Move deeper into the area.","Press the attack.","Hold position and defend.","Look for an escape route.","Ask someone nearby for information.","Search the area carefully.","Talk to your party about what to do next.","Try a more cautious approach.","Ask the Mage to inspect the scene.","Find another way in."]);
 function renderSuggestions(backendChoices){
   const row = document.getElementById('suggestRow');
   if(!row) return;
   let pool;
-  if(backendChoices && backendChoices.length >= 3){
+  // Only use backend choices if they look LLM-generated (not the static fallback strings)
+  const validBackend = backendChoices && backendChoices.length >= 3 && backendChoices.some(s => !_STATIC_FALLBACKS.has(s));
+  if(validBackend){
     pool = backendChoices.slice(0, 3);
-    _lastSuggestions = pool;
-  } else if(_lastSuggestions.length >= 3){
-    pool = _lastSuggestions;
   } else {
     const loc = gameState && _mapKeyFor(gameState.location);
     const hp = gameState ? (gameState.party||[]).reduce((s,m)=>s+Math.max(0,m.health),0) : 100;
