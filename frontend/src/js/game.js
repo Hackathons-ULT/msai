@@ -259,12 +259,7 @@ function _mapKeyFor(s){
 function renderMap(){
   const mapEl = document.getElementById('mapBody');
   if(!mapEl) return;
-  const loc = (gameState && gameState.location) ? gameState.location.toUpperCase() : '???';
-  mapEl.innerHTML = '<div style="position:relative;width:100%;flex:1;min-height:0;">'
-    + '<img src="'+API_BASE+'/assets/map.png" style="width:100%;height:100%;object-fit:cover;display:block;" alt="Aethelgard Map">'
-    + '<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(10,8,6,0.82);border:1px solid #c8922a;padding:4px 12px;font-family:\'Press Start 2P\',monospace;font-size:clamp(5px,0.55vw,8px);color:#f0c060;white-space:nowrap;letter-spacing:1px;">'
-    + '&gt;&gt; YOU ARE HERE: '+loc+' &lt;&lt;'
-    + '</div></div>';
+  mapEl.innerHTML = '<img src="'+API_BASE+'/assets/map.png" style="width:100%;height:auto;display:block;" alt="Aethelgard Map">';
 }
 
 function pushDialogue(speaker, text){
